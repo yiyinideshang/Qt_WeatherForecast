@@ -1,0 +1,12 @@
+build/
+release/*.o
+release/moc_*
+release/qrc_*
+release/*.cpp
+release/moc_predefs.h
+*.pro.user
+.qmake.stash
+Makefile
+Makefile.Debug
+Makefile.Release
+*.exe
