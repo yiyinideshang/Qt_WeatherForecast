@@ -201,7 +201,7 @@ Widget::Widget(QWidget *parent)
     QSettings s;
     QPoint pos = s.value("windowPos").toPoint();
     if (!pos.isNull()) {
-        QTimer::singleShot(0, this, [this, pos]() {
+        QTimer::singleShot(50, this, [this, pos]() {
             QScreen *screen = QGuiApplication::primaryScreen();
             if (screen && screen->availableGeometry().contains(pos))
                 move(pos);

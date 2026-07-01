@@ -5,6 +5,8 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+    a.setOrganizationName("Personal");
+    a.setApplicationName("WeatherForecast");
     Widget w;
     w.show();
     return a.exec();
