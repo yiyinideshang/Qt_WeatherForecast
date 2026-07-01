@@ -129,6 +129,7 @@ Widget::Widget(QWidget *parent)
     connect(m_cityDropdown, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
         if (item->data(Qt::UserRole).toString() == "__clear__") {
             m_cache->clearAll();
+            QSettings().remove("lastCityCode");
             m_cityDropdown->hide();
             return;
         }
