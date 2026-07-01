@@ -124,7 +124,7 @@ Widget::Widget(QWidget *parent)
         "QListWidget { background: white; border: 1px solid #ccc; color: black; font-size: 12pt; }"
         "QListWidget::item { padding: 6px 12px; }"
         "QListWidget::item:hover { background: #e0e0e0; }"
-    );
+        );
     m_cityDropdown->hide();
     connect(m_cityDropdown, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
         if (!(item->flags() & Qt::ItemIsSelectable))
