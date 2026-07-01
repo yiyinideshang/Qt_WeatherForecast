@@ -2,6 +2,7 @@
 #include "ui_widget.h"
 #include <QMenu>
 #include <QAction>
+#include <QIcon>
 #include <QMessageBox>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -9,16 +10,11 @@
 #include <QJsonValue>
 #include <QString>
 #include <QDate>
-#include "weatherTool.h"
-#include <QPainter>
 #include <QPoint>
-
-#define INCREMENT 3//温度每升高/降低1°,y轴坐标的增量
-// ,(因为界面的y轴是向下的,原点在界面左上角,向上偏移就是-,向下偏移就是+)
-#define POINT_RADIUS 3//曲线描点的大小
-#define TEXT_OFFSET_X 12//x,y轴的偏移
-#define TEXT_OFFSET_Y 12
-
+#include <QSettings>
+#include <QTimer>
+#include <QApplication>
+#include "weatherTool.h"
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -32,16 +28,27 @@ Widget::Widget(QWidget *parent)
     //1. 设置窗口属性
     setWindowFlag(Qt::FramelessWindowHint);//设置窗口无边框
     setFixedSize(width(),height());         //设置固定窗口大小
+    setWindowIcon(QIcon("://res/WeatherForecast.png"));
 
     //2. 构建右键菜单,退出程序
     mExitMenu = new QMenu(this);
-    mExitAct = new QAction();
+    mExitMenu->setStyleSheet("QMenu { color: black; } QMenu::item { color: black; }");
 
+    m_minimizeAct = new QAction(QIcon("://res/MiniWindow.png"), "最小化到托盘");
+    mExitMenu->addAction(m_minimizeAct);
+
+    mExitMenu->addSeparator();
+
+    mExitAct = new QAction();
     mExitAct->setText("退出");
     mExitAct->setIcon(QIcon(":/res/close.png"));
 
     mExitMenu->addAction(mExitAct);
 
+    connect(m_minimizeAct, &QAction::triggered, this, [this]() {
+        hide();
+        m_trayIcon->show();
+    });
     connect(mExitAct,&QAction::triggered,this,[=](){
         qApp->exit(0);
     });
@@ -109,29 +116,113 @@ Widget::Widget(QWidget *parent)
     mTypeMap.insert("中雪",":/res/type/zhongxue.png");
     mTypeMap.insert("中雨",":/res/type/zhongyu.png");
 
+    m_cityDropdown = new QListWidget;
+    m_cityDropdown->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
+    m_cityDropdown->setFocusPolicy(Qt::NoFocus);
+    m_cityDropdown->setFrameShape(QFrame::NoFrame);
+    m_cityDropdown->setStyleSheet(
+        "QListWidget { background: white; border: 1px solid #ccc; color: black; font-size: 12pt; }"
+        "QListWidget::item { padding: 6px 12px; }"
+        "QListWidget::item:hover { background: #e0e0e0; }"
+    );
+    m_cityDropdown->hide();
+    connect(m_cityDropdown, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
+        if (item->data(Qt::UserRole).toString() == "__clear__") {
+            m_cache->clearAll();
+            m_cityDropdown->hide();
+            return;
+        }
+        m_cityDropdown->hide();
+        ui->lineEdit_2->setText(item->text());
+        on_pushButton_2_clicked();
+    });
+    qApp->installEventFilter(this);
+
+    ui->lineEdit_2->setContextMenuPolicy(Qt::NoContextMenu);
+    connect(ui->lineEdit_2, &QLineEdit::returnPressed, this, &Widget::on_pushButton_2_clicked);
+
     //3. 网络请求
     //关联信号和槽,当getWeatherInfo发送http请求完毕后,服务器返回数据,此时:
     //mNetAccessManger就会发送一个finished信号,并将QNetworkReply的指针携带服务器的响应,作为参数传递出去,
     //进而调用onReplied槽函数作出 处理响应动作
-    mNetAccessManger = new QNetworkAccessManager(this);
-    connect(mNetAccessManger,&QNetworkAccessManager::finished,this,&Widget::onReplied);
+    m_apiClient = new ApiClient(this);
+    connect(m_apiClient, &ApiClient::weatherDataReady,
+            this, &Widget::onWeatherDataReady);
 
-    // 发送http请求: 直接在构造中请求天气数据
-    //城市编码https://www.weather.com.cn/中国天气网,选择某个城市的40天预报后上方显示的URL的数字即为城市编码
-    // getWeatherInfo("101010100");// 北京的城市编码
-    // getWeatherInfo("101280101");// 广州的城市编码
-    // getWeatherInfo("101091011");//鸡泽的城市编码
-    // getWeatherInfo("101090101");//石家庄的城市编码
-    // getWeatherInfo("101020100");//上海的城市编码
-    // getWeatherInfo("合肥");
-    getLocationByIP();           // ← 改为自动定位
+    connect(m_apiClient, &ApiClient::errorOccurred,this, [](const QString &msg) {
+        QMessageBox msgBox;
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setWindowTitle("天气");
+        msgBox.setText(msg);
+        msgBox.setStyleSheet("color: black;");
+        msgBox.exec();
+     });
 
-    //(1)安装事件过滤器 给标签添加事件过滤器
-    // 参数指定为this,也就是当前窗口对象mainwindow
-    ui->lblHighCurve->installEventFilter(this);
-    ui->lblLowCurve->installEventFilter(this);
+    m_cache = new DataCache(this);
 
+    QSettings settings;
+    QString lastCityCode = settings.value("lastCityCode").toString();
+    if (!lastCityCode.isEmpty() && m_cache->load(lastCityCode, mToday, mDay))
+        updataUI();
+    else
+        showDefaultUI();
 
+    QTimer::singleShot(0, this, [this, lastCityCode]() {
+        if (!lastCityCode.isEmpty())
+            m_apiClient->getWeatherInfo(lastCityCode);
+        else
+            m_apiClient->getLocationByIP();
+    });
+
+    ui->lblGanmao->setWordWrap(true);
+
+    m_highChart = new ChartWidget(QColor(255, 170, 0), ui->widget_5);
+    m_highChart->setGeometry(0, 0, 351, 81);
+    m_lowChart = new ChartWidget(QColor(0, 255, 255), ui->widget_5);
+    m_lowChart->setGeometry(0, 70, 361, 81);
+
+    QSettings s;
+    QPoint pos = s.value("windowPos").toPoint();
+    if (!pos.isNull()) {
+        QTimer::singleShot(0, this, [this, pos]() {
+            QScreen *screen = QGuiApplication::primaryScreen();
+            if (screen && screen->availableGeometry().contains(pos))
+                move(pos);
+        });
+    }
+
+    connect(qApp, &QApplication::aboutToQuit, this, [this]() {
+        QSettings s;
+        s.setValue("windowPos", this->pos());
+    });
+
+    m_trayIcon = new QSystemTrayIcon(QIcon("://res/WeatherForecast.png"), this);
+    m_trayIcon->setToolTip("WeatherForecast");
+
+    QMenu *trayMenu = new QMenu(this);
+    trayMenu->setStyleSheet("QMenu { color: black; } QMenu::item { color: black; }");
+    QAction *showAct = trayMenu->addAction("显示");
+    QAction *trayExitAct = trayMenu->addAction("退出");
+    m_trayIcon->setContextMenu(trayMenu);
+
+    connect(showAct, &QAction::triggered, this, [this]() {
+        showNormal();
+        raise();
+        activateWindow();
+    });
+
+    connect(trayExitAct, &QAction::triggered, this, [this]() {
+        m_trayIcon->hide();
+        qApp->exit(0);
+    });
+
+    connect(m_trayIcon, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::DoubleClick || reason == QSystemTrayIcon::Trigger) {
+            showNormal();
+            raise();
+            activateWindow();
+        }
+    });
 }
 
 Widget::~Widget()
@@ -166,151 +257,13 @@ void Widget::mouseMoveEvent(QMouseEvent *event)
     this->move(event->globalPosition().toPoint() - mOffset);
 }
 
-//发送http请求
-// void Widget::getWeatherInfo(QString cityCode)
-// {
-//     QUrl url("http://t.weather.itboy.net/api/weather/city/"+cityCode);
-//     mNetAccessManger->get(QNetworkRequest(url));//发送一个 HTTP GET 请求。
-//     //QNetworkAccessManager 会根据你的请求，在内部创建一个 QNetworkReply 对象来处理这个具体的网络事务。
-
-// }
-void Widget::getWeatherInfo(QString cityName)
-{
-    QString cityCode = WeatherTool::getCityCode(cityName);
-
-    if(cityCode.isEmpty()){
-        QMessageBox msgBox;
-        msgBox.setIcon(QMessageBox::Warning);
-        msgBox.setWindowTitle("天气");
-        msgBox.setText("请检查输入的城市是否正确!(省级以下的城市)");
-        msgBox.setStyleSheet("color: black;");
-        msgBox.exec();
-        // QMessageBox::warning(this,"天气","请检查输入的城市是否正确!",QMessageBox::Ok);
-        return;
-    }
-
-    QUrl url("http://t.weather.itboy.net/api/weather/city/"+cityCode);
-    mNetAccessManger->get(QNetworkRequest(url));//发送一个 HTTP GET 请求。
-    //QNetworkAccessManager 会根据你的请求，在内部创建一个 QNetworkReply 对象来处理这个具体的网络事务。
-
-}
-
-//解析JSON并调用标签的update方法
-void Widget::parseJson(QByteArray &byteArray)
-{
-    QJsonParseError error;
-    QJsonDocument doc = QJsonDocument::fromJson(byteArray,&error);
-    if(error.error !=QJsonParseError::NoError){
-        return;
-    }
-    //解析成JSON对象
-    QJsonObject rootObj = doc.object();
-    qDebug()<<rootObj.value("message").toString();
-
-    if(rootObj.value("status").toInt() != 200){
-        QMessageBox msgBox;
-        msgBox.setIcon(QMessageBox::Warning);
-        msgBox.setWindowTitle("天气");
-        msgBox.setText("请检查输入的城市是否正确!(省级以下的城市)");
-        msgBox.setStyleSheet("color: black;");
-        msgBox.exec();
-        return;
-    }
-
-    //1. 解析日期和城市
-    mToday.date = rootObj.value("date").toString();
-    mToday.city = rootObj.value("cityInfo").toObject().value("city").toString();
-    //2. 解析 yesterday
-    QJsonObject objData = rootObj.value("data").toObject();
-    QJsonObject ojbYesterday = objData.value("yesterday").toObject();
-    mDay[0].week = ojbYesterday.value("week").toString();
-    mDay[0].date = ojbYesterday.value("ymd").toString();
-    mDay[0].type = ojbYesterday.value("type").toString();
-
-    QString s;
-    {
-        QStringList parts = ojbYesterday.value("high").toString().split(" ");
-        s = parts.size() > 1 ? parts.at(1) : "";
-    }
-    s = s.left(s.length()-1);
-    mDay[0].high = s.toInt();
-    {
-        QStringList parts = ojbYesterday.value("low").toString().split(" ");
-        s = parts.size() > 1 ? parts.at(1) : "";
-    }
-    s = s.left(s.length()-1);
-    mDay[0].low = s.toInt();
-
-    //风向和风力
-    mDay[0].fl = ojbYesterday.value("fl").toString();
-    mDay[0].fx = ojbYesterday.value("fx").toString();
-    //aqi天气指数/污染指数
-    mDay[0].aqi = ojbYesterday.value("aqi").toDouble();
-
-    //3. 解析 forecast 中5天的数据
-    QJsonArray forecastArray = objData.value("forecast").toArray();
-    for(int i = 0;i<5;i++)
-    {
-        QJsonObject objForecast = forecastArray[i].toObject();
-        mDay[i+1].week = objForecast.value("week").toString();
-        mDay[i+1].date = objForecast.value("ymd").toString();
-        mDay[i+1].type = objForecast.value("type").toString();
-
-        {
-            QStringList parts = objForecast.value("high").toString().split(" ");
-            s = parts.size() > 1 ? parts.at(1) : "";
-        }
-        s = s.left(s.length()-1);
-        mDay[i+1].high = s.toInt();
-
-        {
-            QStringList parts = objForecast.value("low").toString().split(" ");
-            s = parts.size() > 1 ? parts.at(1) : "";
-        }
-        s = s.left(s.length()-1);
-        mDay[i+1].low = s.toInt();
-
-        //风向和风力
-        mDay[i+1].fl = objForecast.value("fl").toString();
-        mDay[i+1].fx = objForecast.value("fx").toString();
-        //aqi天气指数/污染指数
-        mDay[i+1].aqi = objForecast.value("aqi").toDouble();
-    }
-    //4. 解析今天的数据
-    mToday.ganmao = objData.value("ganmao").toString();
-
-    QJsonValue wenduVal = objData.value("wendu");
-    mToday.wendu = wenduVal.toString().toDouble();
-
-    mToday.shidu = objData.value("shidu").toString();
-    mToday.pm25 = objData.value("pm25").toDouble();
-    mToday.quality = objData.value("quality").toString();
-
-    //5. forecast中第一个数组元素也是今天的数据
-    mToday.type = mDay[1].type;
-    mToday.fx = mDay[1].fx;
-    mToday.fl = mDay[1].fl;
-    mToday.high = mDay[1].high;
-    mToday.low = mDay[1].low;
-
-    //6. 更新UI
-    //6.1 显示文本和图标
-    updataUI();
-    //6.2 绘制温度曲线
-    ui->lblHighCurve->update();
-    ui->lblLowCurve->update();
-    //调用标签的update方法,框架发送QEvent::Paint事件 给标签,事件被MainWindow拦截,进而调用eventfilter方法
-    //在eventfilter中,调用paintHighCurve和paintLowCurve来进行真正的绘制曲线
-}
-
 void Widget::updataUI()
 {
     //1. 更新日期和城市
     QDate date = QDate::fromString(mToday.date, "yyyyMMdd");//20221022
     ui->lblDate->setText(
         QString("<p><span style='font-size:16pt; font-weight:700;'>%1 %2</span></p>")
-            .arg(date.toString("yyyy/MM/dd"))
-            .arg(mDay[1].week)
+            .arg(date.toString("yyyy/MM/dd"),mDay[1].week)
         );
     ui->lblCity->setText(
         QString("<p align='center'><span style='font-size:16pt;'>%1</span></p>")
@@ -325,7 +278,10 @@ void Widget::updataUI()
             iconPath = mTypeMap.value(parts[0], ":/res/type/tq-1.png");
         }
         ui->lblTypeIcon->setStyleSheet("");
-        ui->lblTypeIcon->setPixmap(QPixmap(iconPath));
+        auto it = m_iconCache.constFind(iconPath);
+        if (it == m_iconCache.constEnd())
+            it = m_iconCache.insert(iconPath, QPixmap(iconPath));
+        ui->lblTypeIcon->setPixmap(it.value());
     }
     ui->lblTemp->setText(
         QString("<html><head/><body><p align='center'>"
@@ -340,8 +296,7 @@ void Widget::updataUI()
     // 温度范围（原字号 14pt，居中）
     ui->lblLowHigh->setText(
         QString("<p align='center'><span style='font-size:14pt;'>%1℃~%2℃</span></p>")
-            .arg(mToday.low)
-            .arg(mToday.high)
+            .arg(mToday.low,mToday.high)
         );
 
     ui->lblGanmao->setText(QString("<p align='left'><span style='font-size:20pt;'>感冒指数:%1</span></p>").arg(mToday.ganmao));
@@ -386,7 +341,10 @@ void Widget::updataUI()
                 iconPath = mTypeMap.value(parts[0], ":/res/type/tq-1.png");
             }
             mTypeIconList[i]->setStyleSheet("border-image: none;");
-            mTypeIconList[i]->setPixmap(QPixmap(iconPath));
+            auto it = m_iconCache.constFind(iconPath);
+            if (it == m_iconCache.constEnd())
+                it = m_iconCache.insert(iconPath, QPixmap(iconPath));
+            mTypeIconList[i]->setPixmap(it.value());
         }
         mTypeList[i]->setText(
             QString("<p align='center'><span style='font-size:12pt;'>%1</span></p>")
@@ -432,209 +390,139 @@ void Widget::updataUI()
     }
 }
 
-//实现eventsfilter方法重写
-bool Widget::eventFilter(QObject *watched, QEvent *event)
+void Widget::showDefaultUI()
 {
-    if(watched==ui->lblHighCurve && event->type()==QEvent::Paint){
-        paintHighCurve();   // 保安拦下“重绘事件”，亲自画了温度曲线
+    ui->lblDate->setText(
+        "<p><span style='font-size:16pt; font-weight:700;'>----/--/-- --</span></p>");
+    ui->lblCity->setText(
+        "<p align='center'><span style='font-size:16pt;'>加载中...</span></p>");
+
+    ui->lblTypeIcon->setStyleSheet("");
+    ui->lblTypeIcon->setPixmap(QPixmap(":/res/type/tq-1.png"));
+    ui->lblTemp->setText(
+        "<html><head/><body><p align='center'>"
+        "<span style='font-size:35pt; font-weight:700;'>--℃</span>"
+        "</p></body></html>");
+    ui->lblType->setText(
+        "<p align='center'><span style='font-size:14pt;'>--</span></p>");
+    ui->lblLowHigh->setText(
+        "<p align='center'><span style='font-size:14pt;'>--℃~--℃</span></p>");
+
+    ui->lblGanmao->setText(
+        "<p align='left'><span style='font-size:20pt;'>感冒指数:--</span></p>");
+    ui->lblWindFx->setText(
+        "<p align='center'><span style='font-size:12pt;'>--</span></p>");
+    ui->lblWindFl->setText(
+        "<p align='center'><span style='font-size:12pt;'>--</span></p>");
+    ui->lblPM25->setText(
+        "<p align='center'><span style='font-size:12pt;'>--</span></p>");
+    ui->lblShidu->setText(
+        "<p align='center'><span style='font-size:12pt;'>--</span></p>");
+    ui->lblQuality->setStyleSheet("background-color: rgb(180, 180, 180);color: rgb(255, 255, 255);");
+    ui->lblQuality->setText(
+        "<p align='center'><span style='font-size:12pt;'>--</span></p>");
+
+    ui->lblWeek0->setText("<p align='center'><span style='font-size:12pt;'>昨天</span></p>");
+    ui->lblWeek1->setText("<p align='center'><span style='font-size:12pt;'>今天</span></p>");
+    ui->lblWeek2->setText("<p align='center'><span style='font-size:12pt;'>明天</span></p>");
+
+    for (int i = 0; i < 6; i++) {
+        mWeekList[i]->setText(
+            "<p align='center'><span style='font-size:12pt;'>--</span></p>");
+        mDateList[i]->setText(
+            "<p align='center'><span style='font-size:12pt;'>--/--</span></p>");
+        mTypeIconList[i]->setStyleSheet("border-image: none;");
+        mTypeIconList[i]->setPixmap(QPixmap(":/res/type/tq-1.png"));
+        mTypeList[i]->setText(
+            "<p align='center'><span style='font-size:12pt;'>--</span></p>");
+        mAqiList[i]->setStyleSheet("background-color: rgb(180, 180, 180);color: rgb(255, 255, 255);");
+        mAqiList[i]->setText(
+            "<p align='center'><span style='font-size:12pt;'>--</span></p>");
+        mFxList[i]->setText(
+            "<p align='center'><span style='font-size:12pt;'>--</span></p>");
+        mFlList[i]->setText(
+            "<p align='center'><span style='font-size:12pt;'>--</span></p>");
     }
-    if(watched==ui->lblLowCurve && event->type()==QEvent::Paint){
-        paintLowCurve();    // 保安拦下“重绘事件”，亲自画了温度曲线
-    }
-    // return QWidget::eventFilter(watched,event);//事件继续往后传
-    return true;//这样事件就被“保安”吃掉了，员工再也收不到快递。
 }
 
-//最高温曲线绘图
-void Widget::paintHighCurve()
+bool Widget::eventFilter(QObject *obj, QEvent *event)
 {
-    QPainter painter(ui->lblHighCurve);
-
-    //抗锯齿
-    painter.setRenderHint(QPainter::Antialiasing,true);
-
-    //1. 获取x坐标
-    int pointX[6] = {0};
-    for(int i = 0;i<6;i++){
-        pointX[i] = mWeekList[i]->pos().x() + mWeekList[i]->width()/2;
-
-    }
-    //2. 获取y坐标
-    int tempSum = 0;
-    int tempAvearge = 0;
-    for(int i = 0;i<6;i++){
-        tempSum += mDay[i].high;
-    }
-    tempAvearge = tempSum/6;//最高温的平均值//平均值在label中间
-
-    //计算y坐标
-    int pointY[6] = {0};
-    int yCenter = ui->lblHighCurve->height()/2;
-    for(int i = 0;i<6;i++){
-        pointY[i] = yCenter - ((mDay[i].high-tempAvearge)*INCREMENT);
-    }
-
-    //3. 开始绘制
-    //3.1 初始化画笔相关
-    painter.save();                     // ① 保存画家默认状态(此时画笔还是默认黑色，因为还没setPen
-
-    QPen pen = painter.pen();           // ② 获取当前画笔的副本（默认黑色、1px等）
-    pen.setWidth(1);                    // ③ 修改画笔副本（宽度设为1）//设置画笔的宽度
-    pen.setColor(QColor(255,170,0));    // ④ 修改画笔副本（颜色设为橙色）//设置画笔的颜色
-
-    painter.setPen(pen);                // ⑤ 设置画家的画笔
-    painter.setBrush(QColor(255,170,0));// ⑥ 设置画家画刷的颜色-内部填充的颜色
-
-
-    //3.2 画点、写文字
-    for(int i = 0;i<6;i++){
-        //显示点
-        painter.drawEllipse(QPoint(pointX[i],pointY[i]),POINT_RADIUS,POINT_RADIUS);
-
-        //显示温度文本
-        painter.drawText(pointX[i]-TEXT_OFFSET_X,pointY[i]-TEXT_OFFSET_Y,
-                         QString::number(mDay[i].high) + "°");
-    }
-
-    //3.3 绘制曲线
-    for(int i = 0;i<5;i++){
-        //昨天到今天是虚线
-        if(i == 0){
-            pen.setStyle(Qt::DotLine);//虚线
-            painter.setPen(pen);
+    if (event->type() == QEvent::MouseButtonPress && m_cityDropdown->isVisible()) {
+        QWidget *src = qobject_cast<QWidget*>(obj);
+        if (src && src != m_cityDropdown && !m_cityDropdown->isAncestorOf(src) && src != ui->lineEdit_2) {
+            m_cityDropdown->hide();
         }
-        else{
-            pen.setStyle(Qt::SolidLine);//实线
-            painter.setPen(pen);
-        }
-        painter.drawLine(pointX[i],pointY[i],pointX[i+1],pointY[i+1]);
     }
-    painter.restore();       // ⑦ 恢复save()原始状态
-}
-//最低温曲线绘图
-void Widget::paintLowCurve()
-{
-    QPainter painter(ui->lblLowCurve);
-
-    //抗锯齿
-    painter.setRenderHint(QPainter::Antialiasing,true);
-
-    //1. 获取x坐标
-    int pointX[6] = {0};
-    for(int i = 0;i<6;i++){
-        pointX[i] = mWeekList[i]->pos().x() + mWeekList[i]->width()/2;
-
+    if (obj == ui->lineEdit_2 && event->type() == QEvent::MouseButtonPress) {
+        if (m_cityDropdown->isVisible())
+            m_cityDropdown->hide();
+        else
+            showCityDropdown();
+        return false;
     }
-    //2. 获取y坐标
-    int tempSum = 0;
-    int tempAvearge = 0;
-    for(int i = 0;i<6;i++){
-        tempSum += mDay[i].low;
-    }
-    tempAvearge = tempSum/6;//最高温的平均值//平均值在label中间
-
-    //计算y坐标
-    int pointY[6] = {0};
-    int yCenter = ui->lblLowCurve->height()/2;
-    for(int i = 0;i<6;i++){
-        pointY[i] = yCenter - ((mDay[i].low-tempAvearge)*INCREMENT);
-    }
-
-    //3. 开始绘制
-    //3.1 初始化画笔相关
-    painter.save();                     // ① 保存画家默认状态(此时画笔还是默认黑色，因为还没setPen
-
-    QPen pen = painter.pen();           // ② 获取当前画笔的副本（默认黑色、1px等）
-    pen.setWidth(1);                    // ③ 修改画笔副本（宽度设为1）//设置画笔的宽度
-    pen.setColor(QColor(0,255,255));    // ④ 修改画笔副本（颜色设为蓝色）//设置画笔的颜色
-
-    painter.setPen(pen);                // ⑤ 设置画家的画笔
-    painter.setBrush(QColor(0,255,255));// ⑥ 设置画家画刷的颜色-内部填充的颜色
-
-    //3.2 画点、写文字
-    for(int i = 0;i<6;i++){
-        //显示点
-        painter.drawEllipse(QPoint(pointX[i],pointY[i]),POINT_RADIUS,POINT_RADIUS);
-
-        //显示温度文本
-        painter.drawText(pointX[i]-TEXT_OFFSET_X,pointY[i]-TEXT_OFFSET_Y,
-                         QString::number(mDay[i].high) + "°");
-    }
-
-    //3.3 绘制曲线
-    for(int i = 0;i<5;i++){
-        //昨天到今天是虚线
-        if(i == 0){
-            pen.setStyle(Qt::DotLine);//虚线
-            painter.setPen(pen);
-        }
-        else{
-            pen.setStyle(Qt::SolidLine);//实线
-            painter.setPen(pen);
-        }
-
-        painter.drawLine(pointX[i],pointY[i],pointX[i+1],pointY[i+1]);
-    }
-    painter.restore();        // ⑦ 恢复save()原始状态
+    return QWidget::eventFilter(obj, event);
 }
 
-//槽函数用于处理服务器返回的数据
-void Widget::onReplied(QNetworkReply *reply)
+void Widget::showCityDropdown()
 {
-    qDebug()<<"onReplied success";
+    m_cityDropdown->clear();
+    auto cities = m_cache->getAllCachedCities();
 
-    //当响应的状态码为200时,表示请求成功
-    int status_code = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    qDebug()<<"operation:"<<reply->operation();     //请求方式
-    qDebug()<<"status_code:"<<status_code;          //状态码
-    qDebug()<<"url:"<<reply->url();                 //url
-    qDebug()<<"raw header:"<<reply->rawHeaderList();//header
+    if (cities.isEmpty()) {
+        QListWidgetItem *emptyItem = new QListWidgetItem("暂无缓存记录");
+        emptyItem->setFlags(Qt::ItemIsEnabled);
+        emptyItem->setForeground(QColor(160, 160, 160));
+        m_cityDropdown->addItem(emptyItem);
+    } else {
+        for (const auto &pair : qAsConst(cities))
+            m_cityDropdown->addItem(pair.second);
+        QListWidgetItem *clearItem = new QListWidgetItem("清除缓存记录");
+        clearItem->setData(Qt::UserRole, "__clear__");
+        clearItem->setForeground(QColor(160, 160, 160));
+        m_cityDropdown->addItem(clearItem);
+    }
 
-    //判断请求是否出错（如网络不通、DNS 解析失败）或 HTTP 状态码不是 200 OK。
-    if(reply->error() != QNetworkReply::NoError || status_code != 200)
-    {
-        qDebug()<<reply->errorString().toLatin1().data();
-        //如果是失败状态，则弹出警告框提示“请求数据失败”。
-        QMessageBox msgBox;
-        msgBox.setIcon(QMessageBox::Warning);
-        msgBox.setWindowTitle("天气");
-        msgBox.setText("请求数据失败，请检查城市编码~~！");
-        msgBox.setStyleSheet("color: black;");
-        msgBox.exec();
-    }
-    else
-    {
-        //获取响应信息
-        //用 reply->readAll() 读取服务器返回的完整数据（这里就是天气的 JSON 字符串），并打印出来。
-        QByteArray byteArray = reply->readAll();
-        qDebug()<<"read all:"<<byteArray.data();
-        parseJson(byteArray);
-    }
-    //最后必须调用 reply->deleteLater() 释放网络回复对象的内存，避免内存泄漏。
-    reply->deleteLater();
+    QPoint pos = ui->lineEdit_2->mapToGlobal(QPoint(0, ui->lineEdit_2->height()));
+    m_cityDropdown->setFixedWidth(ui->lineEdit_2->width());
+    m_cityDropdown->move(pos);
+    m_cityDropdown->show();
 }
 
 void Widget::on_pushButton_2_clicked()
 {
     QString cityName = ui->lineEdit_2->text();
-    getWeatherInfo(cityName);
-}
-
-void Widget::getLocationByIP()
-{
-    auto *ipManager = new QNetworkAccessManager(this);
-    connect(ipManager, &QNetworkAccessManager::finished, this, [=](QNetworkReply *reply) {
-        reply->deleteLater();
-        ipManager->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            getWeatherInfo("北京");        // 失败时默认
+    QString cityCode = WeatherTool::getCityCode(cityName);
+    if (!cityCode.isEmpty()) {
+        QSettings settings;
+        settings.setValue("lastCityCode", cityCode);
+        if (m_cache->load(cityCode, mToday, mDay)) {
+            onWeatherDataReady(mToday, mDay);
             return;
         }
-        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        QString city = doc.object().value("city").toString();
-        qDebug() << "自动定位到:" << city;
-        getWeatherInfo(city.isEmpty() ? "北京" : city);
-    });
-    ipManager->get(QNetworkRequest(QUrl("http://ip-api.com/json/?lang=zh-CN")));
+    }
+    m_apiClient->getWeatherInfo(cityName);
 }
+
+void Widget::onWeatherDataReady(const Today &today, const Day day[6])
+{
+    mToday = today;
+    for (int i = 0; i < 6; ++i) mDay[i] = day[i];
+    updataUI();
+
+    QSettings settings;
+    QString cityCode = WeatherTool::getCityCode(mToday.city);
+    if (!cityCode.isEmpty())
+        settings.setValue("lastCityCode", cityCode);
+
+    int high[6], low[6];
+    for (int i = 0; i < 6; ++i) {
+        high[i] = mDay[i].high;
+        low[i] = mDay[i].low;
+    }
+    m_highChart->setData(high);
+    m_lowChart->setData(low);
+
+    m_cache->save(cityCode, mToday, mDay);
+}
+
 

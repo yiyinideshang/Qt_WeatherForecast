@@ -40,8 +40,10 @@ public:
             // QJsonObject
             QString Name = cities[i].toObject().value("cityName").toString();
             QString Code = cities[i].toObject().value("cityCode").toString();
+            QString Pinyin = cities[i].toObject().value("cityPinyin").toString();
             if(Code.size()>0){
                 mCityMap.insert(Name,Code);
+                mPinyinMap.insert(Pinyin,Code);
             }
         }
     }
@@ -57,15 +59,29 @@ public:
         if(it == mCityMap.end() && cityName.endsWith("市")){
             it = mCityMap.find(cityName.left(cityName.size() - 1));
         }
+        if(it == mCityMap.end()){
+            it = mCityMap.find(cityName+"县");
+        }
+        if(it == mCityMap.end() && cityName.endsWith("县")){
+            it = mCityMap.find(cityName.left(cityName.size() - 1));
+        }
         if(it!=mCityMap.end()){
             return it.value();
         }
         return "";
     }
+
+    static QString getCityCodeByPinyin(const QString &pinyin){
+        if(mCityMap.isEmpty()){
+            initCityMap();
+        }
+        return mPinyinMap.value(pinyin.toLower());
+    }
 private:
-    static QMap<QString,QString> mCityMap;
+    inline static QMap<QString,QString> mCityMap;
+    inline static QMap<QString,QString> mPinyinMap;
 };
 
 
-QMap<QString,QString> WeatherTool::mCityMap = {};
+// QMap<QString,QString> WeatherTool::mCityMap = {};
 #endif // WEATHERTOOL_H

@@ -5,8 +5,8 @@
 class Today{
 public:
     Today(){
-        date = "2022-10-20";
-        city = "广州";
+        date = "2026-05-20";
+        city = "北京";
 
         ganmao="感冒指数";
 
@@ -44,8 +44,8 @@ public:
 class Day{
 public:
     Day(){
-        date = "2022-10-20";
-        week = "周五";
+        date = "2025-5-20";
+        week = "周四";
 
         type = "多云";
 
