@@ -10,3 +10,4 @@ Makefile
 Makefile.Debug
 Makefile.Release
 *.exe
+weather_cache.db 

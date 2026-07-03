@@ -1,11 +1,14 @@
 #include "apiclient.h"
 
 #include <QString>
+#include <QDate>
+#include <QDateTime>
 #include <QMessageBox>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QJsonValue>
+#include <QtMath>
 #include "weatherTool.h"
 
 ApiClient::ApiClient(QObject *parent)
@@ -120,83 +123,94 @@ void ApiClient::parseJson(const QByteArray &byteArray)
         return;
     }
 
-    //1. 解析日期和城市
-    mToday.date = rootObj.value("date").toString();
+    //1. 解析城市
     mToday.city = rootObj.value("cityInfo").toObject().value("city").toString();
-    //2. 解析 yesterday
+
+    //2. 确定今天的基准日期（从 time 字段）
     QJsonObject objData = rootObj.value("data").toObject();
-    QJsonObject ojbYesterday = objData.value("yesterday").toObject();
-    mDay[0].week = ojbYesterday.value("week").toString();
-    mDay[0].date = ojbYesterday.value("ymd").toString();
-    mDay[0].type = ojbYesterday.value("type").toString();
-
-    QString s;
-    {
-        QStringList parts = ojbYesterday.value("high").toString().split(" ");
-        s = parts.size() > 1 ? parts.at(1) : "";
-    }
-    s = s.left(s.length()-1);
-    mDay[0].high = s.toInt();
-    {
-        QStringList parts = ojbYesterday.value("low").toString().split(" ");
-        s = parts.size() > 1 ? parts.at(1) : "";
-    }
-    s = s.left(s.length()-1);
-    mDay[0].low = s.toInt();
-
-    //风向和风力
-    mDay[0].fl = ojbYesterday.value("fl").toString();
-    mDay[0].fx = ojbYesterday.value("fx").toString();
-    //aqi天气指数/污染指数
-    mDay[0].aqi = ojbYesterday.value("aqi").toDouble();
-
-    //3. 解析 forecast 中5天的数据
     QJsonArray forecastArray = objData.value("forecast").toArray();
-    for(int i = 0;i<5;i++)
-    {
-        QJsonObject objForecast = forecastArray[i].toObject();
-        mDay[i+1].week = objForecast.value("week").toString();
-        mDay[i+1].date = objForecast.value("ymd").toString();
-        mDay[i+1].type = objForecast.value("type").toString();
 
-        {
-            QStringList parts = objForecast.value("high").toString().split(" ");
-            s = parts.size() > 1 ? parts.at(1) : "";
-        }
-        s = s.left(s.length()-1);
-        mDay[i+1].high = s.toInt();
+    QString timeStr = objData.value("time").toString();
+    if (timeStr.isEmpty())
+        timeStr = rootObj.value("time").toString();
 
-        {
-            QStringList parts = objForecast.value("low").toString().split(" ");
-            s = parts.size() > 1 ? parts.at(1) : "";
-        }
-        s = s.left(s.length()-1);
-        mDay[i+1].low = s.toInt();
-
-        //风向和风力
-        mDay[i+1].fl = objForecast.value("fl").toString();
-        mDay[i+1].fx = objForecast.value("fx").toString();
-        //aqi天气指数/污染指数
-        mDay[i+1].aqi = objForecast.value("aqi").toDouble();
+    QDate todayDate;
+    QDateTime dt = QDateTime::fromString(timeStr, "yyyy-MM-dd HH:mm:ss");
+    if (dt.isValid())
+        todayDate = dt.date();
+    if (!todayDate.isValid()) {
+        dt = QDateTime::fromString(timeStr, Qt::ISODate);
+        if (dt.isValid())
+            todayDate = dt.date();
     }
-    //4. 解析今天的数据
-    mToday.ganmao = objData.value("ganmao").toString();
+    if (!todayDate.isValid())
+        todayDate = QDate::currentDate();
 
+    //3. 在 forecast 中找到匹配今天的索引
+    int todayIdx = -1;
+    for (int i = 0; i < forecastArray.size(); i++) {
+        QDate fd = QDate::fromString(
+            forecastArray[i].toObject().value("ymd").toString(), "yyyy-MM-dd");
+        if (fd == todayDate) { todayIdx = i; break; }
+    }
+    if (todayIdx < 0) todayIdx = 0;
+
+    //4. 按对齐后的索引填充 mDay[0..5]
+    auto parseDay = [](const QJsonObject &obj, Day &d) {
+        d.date = obj.value("ymd").toString();
+        d.week = obj.value("week").toString();
+        d.type = obj.value("type").toString();
+        d.sunrise = obj.value("sunrise").toString();
+        d.sunset = obj.value("sunset").toString();
+        d.notice = obj.value("notice").toString();
+        QString s;
+        QStringList parts = obj.value("high").toString().split(" ");
+        s = parts.size() > 1 ? parts.at(1) : "";
+        s = s.left(s.length()-1);
+        d.high = s.toInt();
+        parts = obj.value("low").toString().split(" ");
+        s = parts.size() > 1 ? parts.at(1) : "";
+        s = s.left(s.length()-1);
+        d.low = s.toInt();
+        d.fl = obj.value("fl").toString();
+        d.fx = obj.value("fx").toString();
+        d.aqi = obj.value("aqi").toDouble();
+    };
+
+    // 昨天
+    if (todayIdx == 0)
+        parseDay(objData.value("yesterday").toObject(), mDay[0]);
+    else
+        parseDay(forecastArray[todayIdx - 1].toObject(), mDay[0]);
+
+    // 今天 + 未来四天
+    int endIdx = qMin(todayIdx + 5, forecastArray.size());
+    for (int i = todayIdx; i < endIdx; i++)
+        parseDay(forecastArray[i].toObject(), mDay[i - todayIdx + 1]);
+
+    //5. 解析今天的数据
+    mToday.ganmao = objData.value("ganmao").toString();
     QJsonValue wenduVal = objData.value("wendu");
     mToday.wendu = wenduVal.toString().toDouble();
-
     mToday.shidu = objData.value("shidu").toString();
     mToday.pm25 = objData.value("pm25").toDouble();
+    mToday.pm10 = objData.value("pm10").toDouble();
     mToday.quality = objData.value("quality").toString();
+    mToday.updateTime = objData.value("time").toString();
+    if (mToday.updateTime.isEmpty())
+        mToday.updateTime = rootObj.value("time").toString();
+    if (mToday.updateTime.isEmpty())
+        mToday.updateTime = rootObj.value("cityInfo").toObject().value("updateTime").toString();
+    mToday.date = rootObj.value("date").toString();
 
-    //5. forecast中第一个数组元素也是今天的数据
+    //6. 今天的数据来自对齐后的 mDay[1]
     mToday.type = mDay[1].type;
     mToday.fx = mDay[1].fx;
     mToday.fl = mDay[1].fl;
     mToday.high = mDay[1].high;
     mToday.low = mDay[1].low;
 
-    //6. 更新UI
+    //7. 更新UI
     emit weatherDataReady(mToday, mDay);
 }
 

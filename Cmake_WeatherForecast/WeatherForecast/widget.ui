@@ -698,11 +698,100 @@ QLineEdit{border-radius: 15px;}</string>
      <x>10</x>
      <y>210</y>
      <width>411</width>
-     <height>141</height>
+     <height>55</height>
     </rect>
    </property>
+   <property name="styleSheet">
+    <string notr="true">font-size:16pt;</string>
+   </property>
    <property name="text">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;感冒指数：&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;儿童、老人以及心脏、呼吸系统疾病患者&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;人群应减少长时间或高强度户外锻炼&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>感冒指数: --</string>
+   </property>
+   <property name="wordWrap">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lblNotice">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>310</y>
+     <width>411</width>
+     <height>35</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font-size:14pt;</string>
+   </property>
+   <property name="text">
+    <string>温馨提示: --</string>
+   </property>
+   <property name="wordWrap">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lblPM10">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>365</y>
+     <width>130</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font-size:11pt; color: #e0e0e0;</string>
+   </property>
+   <property name="text">
+    <string>PM10: --</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lblSunrise">
+   <property name="geometry">
+    <rect>
+     <x>150</x>
+     <y>365</y>
+     <width>120</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font-size:11pt; color: #e0e0e0;</string>
+   </property>
+   <property name="text">
+    <string>日出 --:--</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lblSunset">
+   <property name="geometry">
+    <rect>
+     <x>280</x>
+     <y>365</y>
+     <width>130</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font-size:11pt; color: #e0e0e0;</string>
+   </property>
+   <property name="text">
+    <string>日落 --:--</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lblUpdateTime">
+   <property name="geometry">
+    <rect>
+     <x>750</x>
+     <y>583</y>
+     <width>230</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font-size:10pt; color: #e0e0e0;</string>
+   </property>
+   <property name="text">
+    <string>数据更新: --:--</string>
    </property>
   </widget>
   <widget class="QWidget" name="widget_6" native="true">

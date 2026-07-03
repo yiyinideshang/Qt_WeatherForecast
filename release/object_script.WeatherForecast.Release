@@ -1,0 +1,10 @@
+release/apiclient.o
+release/chartwidget.o
+release/datacache.o
+release/main.o
+release/widget.o
+release/qrc_res.o
+release/moc_apiclient.o
+release/moc_chartwidget.o
+release/moc_datacache.o
+release/moc_widget.o

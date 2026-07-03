@@ -14,6 +14,9 @@
 #include <QSettings>
 #include <QTimer>
 #include <QApplication>
+#include <QFontDatabase>
+#include <QFile>
+#include <QPainter>
 #include "weatherTool.h"
 
 Widget::Widget(QWidget *parent)
@@ -66,55 +69,7 @@ Widget::Widget(QWidget *parent)
     mFxList<<ui->lblFX0<<ui->lblFX1<<ui->lblFX2<<ui->lblFX3<<ui->lblFX4<<ui->lblFX5;
     mFlList<<ui->lblFl0<<ui->lblFl1<<ui->lblFl2<<ui->lblFl3<<ui->lblFl4<<ui->lblFl5;
 
-    //图标
-    mTypeMap.insert("暴雪",":/res/type/baoxue.png");
-    mTypeMap.insert("暴雨",":/res/type/baoyu.png");
-    mTypeMap.insert("多云",":/res/type/duoyun.png");
-    mTypeMap.insert("冻雨",":/res/type/dongyu.png");
-    mTypeMap.insert("大雨",":/res/type/dayu.png");
-    mTypeMap.insert("大雪",":/res/type/daxue.png");
-    mTypeMap.insert("大风",":/res/type/dafeng.png");
-    mTypeMap.insert("风暴",":/res/type/fengbao.png");
-    mTypeMap.insert("浮尘",":/res/type/fuchen.png");
-    mTypeMap.insert("和风",":/res/type/hefeng.png");
-    mTypeMap.insert("疾风",":/res/type/jifeng.png");
-    mTypeMap.insert("飓风",":/res/type/jufeng.png");
-    mTypeMap.insert("狂风",":/res/type/kuangbaofeng.png");
-    mTypeMap.insert("雷阵雨",":/res/type/leizhenyu.png");
-    mTypeMap.insert("雷阵雨伴有冰雹",":/res/type/leizhenyubanyoubingbao.png");
-    mTypeMap.insert("冷",":/res/type/leng.png");
-    mTypeMap.insert("烈风",":/res/type/liefeng.png");
-    mTypeMap.insert("龙卷风",":/res/type/longjuanfeng.png");
-    mTypeMap.insert("霾",":/res/type/mai.png");
-    mTypeMap.insert("浓雾",":/res/type/nongwu.png");
-    mTypeMap.insert("平静",":/res/type/pingjing.png");
-    mTypeMap.insert("强风/劲风",":/res/type/qiangfengjinfeng.png");
-    mTypeMap.insert("强浓雾",":/res/type/qiangnongwu.png");
-    mTypeMap.insert("强沙尘暴",":/res/type/qiangshachenbao.png");
-    mTypeMap.insert("轻风",":/res/type/qingfeng.png");
-    mTypeMap.insert("轻雾",":/res/type/qingwu.png");
-    mTypeMap.insert("热带风暴",":/res/type/redaifengbao.png");
-    mTypeMap.insert("热",":/res/type/re.png");
-    mTypeMap.insert("沙尘暴",":/res/type/shachenbao.png");
-    mTypeMap.insert("特大暴雨",":/res/type/tedabaoyubaoyu.png");
-    mTypeMap.insert("晴",":/res/type/tq-1.png");
-    mTypeMap.insert("微风",":/res/type/weifeng.png");
-    mTypeMap.insert("未知",":/res/type/weizhi.png");
-    mTypeMap.insert("雾",":/res/type/wu.png");
-    mTypeMap.insert("小雪",":/res/type/xiaoxue.png");
-    mTypeMap.insert("小雨",":/res/type/xiaoyu.png");
-    mTypeMap.insert("扬沙",":/res/type/yangsha.png");
-    mTypeMap.insert("严重霾",":/res/type/yanzhongmai.png");
-    mTypeMap.insert("夜晚",":/res/type/yewan.png");
-    mTypeMap.insert("夜间多云",":/res/type/yejianduoyun.png");
-    mTypeMap.insert("阴",":/res/type/yin.png");
-    mTypeMap.insert("有风",":/res/type/youfeng.png");
-    mTypeMap.insert("雨夹雪",":/res/type/yujiaxue.png");
-    mTypeMap.insert("阵雪",":/res/type/zhenxue.png");
-    mTypeMap.insert("阵雨",":/res/type/zhenyu.png");
-    mTypeMap.insert("中度霾",":/res/type/zhongdumai.png");
-    mTypeMap.insert("中雪",":/res/type/zhongxue.png");
-    mTypeMap.insert("中雨",":/res/type/zhongyu.png");
+    loadIconFont();
 
     m_cityDropdown = new QListWidget;
     m_cityDropdown->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
@@ -247,6 +202,77 @@ Widget::~Widget()
     delete ui;
 }
 
+void Widget::loadIconFont()
+{
+    int fontId = QFontDatabase::addApplicationFont(":/res/weatherforecast_icon/iconfont.ttf");
+    if (fontId >= 0) {
+        QStringList families = QFontDatabase::applicationFontFamilies(fontId);
+        if (!families.isEmpty())
+            m_iconFont = QFont(families.first(), 40);
+    }
+
+    QFile f(":/res/weatherforecast_icon/iconfont.json");
+    if (!f.open(QIODevice::ReadOnly))
+        return;
+    QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    f.close();
+    if (!doc.isObject())
+        return;
+    QJsonArray glyphs = doc.object().value("glyphs").toArray();
+    for (const QJsonValue &v : glyphs) {
+        QJsonObject g = v.toObject();
+        QString name = g.value("name").toString();
+        QString unicodeHex = g.value("unicode").toString();
+        bool ok;
+        uint code = unicodeHex.toUInt(&ok, 16);
+        if (ok && !name.isEmpty())
+            mIconCodeMap.insert(name, QChar(code));
+    }
+
+    // API 返回别名
+    struct { const char *api; const char *iconfont; } aliases[] = {
+        {"狂风", "狂爆风"},
+        {"强风/劲风", "强风劲风"},
+        {"轻风", "清风"},
+        {"雨夹雪", "雨加雪"},
+    };
+    for (auto &a : aliases) {
+        auto it = mIconCodeMap.find(QLatin1String(a.iconfont));
+        if (it != mIconCodeMap.end())
+            mIconCodeMap.insert(QLatin1String(a.api), it.value());
+    }
+}
+
+QPixmap Widget::renderWeatherIcon(const QString &weather)
+{
+    auto it = m_iconCache.constFind(weather);
+    if (it != m_iconCache.constEnd())
+        return it.value();
+
+    QChar code(0xe695); // 默认"晴"
+    auto codeIt = mIconCodeMap.constFind(weather);
+    if (codeIt != mIconCodeMap.constEnd())
+        code = codeIt.value();
+
+    int size = 64;
+    QPixmap pixmap(size, size);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    int pointSize = m_iconFont.pointSize();
+    if (pointSize <= 0)
+        pointSize = 40;
+    QFont f(m_iconFont);
+    f.setPixelSize(size * 0.75);
+    painter.setFont(f);
+    painter.setPen(QColor(255, 255, 255));
+    painter.drawText(QRect(0, 0, size, size), Qt::AlignCenter, QString(code));
+    painter.end();
+
+    m_iconCache.insert(weather, pixmap);
+    return pixmap;
+}
+
 //重写父类的虚函数,父类中默认的实现 是忽略右键菜单事件,重写之后就可以处理右键菜单
 void Widget::contextMenuEvent(QContextMenuEvent *event)
 {
@@ -277,10 +303,11 @@ void Widget::mouseMoveEvent(QMouseEvent *event)
 void Widget::updataUI()
 {
     //1. 更新日期和城市
-    QDate date = QDate::fromString(mToday.date, "yyyyMMdd");//20221022
+    QDate today = QDate::currentDate();
+    QLocale locale("zh_CN");
     ui->lblDate->setText(
         QString("<p><span style='font-size:16pt; font-weight:700;'>%1 %2</span></p>")
-            .arg(date.toString("yyyy/MM/dd"),mDay[1].week)
+            .arg(today.toString("yyyy/MM/dd"), locale.dayName(today.dayOfWeek()))
         );
     ui->lblCity->setText(
         QString("<p align='center'><span style='font-size:16pt;'>%1</span></p>")
@@ -289,16 +316,8 @@ void Widget::updataUI()
 
     //2. 更新今天
     {
-        QString iconPath = mTypeMap.value(mToday.type);
-        if (iconPath.isEmpty()) {
-            QStringList parts = mToday.type.split("转");
-            iconPath = mTypeMap.value(parts[0], ":/res/type/tq-1.png");
-        }
         ui->lblTypeIcon->setStyleSheet("");
-        auto it = m_iconCache.constFind(iconPath);
-        if (it == m_iconCache.constEnd())
-            it = m_iconCache.insert(iconPath, QPixmap(iconPath));
-        ui->lblTypeIcon->setPixmap(it.value());
+        ui->lblTypeIcon->setPixmap(renderWeatherIcon(mToday.type));
     }
     ui->lblTemp->setText(
         QString("<html><head/><body><p align='center'>"
@@ -316,8 +335,16 @@ void Widget::updataUI()
             .arg(mToday.low).arg(mToday.high)
         );
 
-    ui->lblGanmao->setText(QString("<p align='left'><span style='font-size:20pt;'>感冒指数:%1</span></p>").arg(mToday.ganmao));
-    // ui->lblGanmao->setText(""+mToday.ganmao);
+    ui->lblGanmao->setText(QString("感冒指数: %1").arg(mToday.ganmao));
+    ui->lblNotice->setText(QString("温馨提示: %1").arg(
+        mDay[1].notice.isEmpty() ? "--" : mDay[1].notice));
+    ui->lblSunrise->setText(QString("日出 %1").arg(
+        mDay[1].sunrise.isEmpty() ? "--:--" : mDay[1].sunrise));
+    ui->lblSunset->setText(QString("日落 %1").arg(
+        mDay[1].sunset.isEmpty() ? "--:--" : mDay[1].sunset));
+    ui->lblUpdateTime->setText(QString("数据更新: %1").arg(
+        mToday.updateTime.isEmpty() ? "--:--" : mToday.updateTime));
+    ui->lblPM10->setText(QString("PM10: %1").arg(mToday.pm10));
     ui->lblWindFx->setText(QString("<p align='center'><span style='font-size:12pt;'>%1</span></p>").arg(mToday.fx));
     ui->lblWindFl->setText(QString("<p align='center'><span style='font-size:12pt;'>%1</span></p>").arg(mToday.fl));
     ui->lblPM25->setText(QString("<p align='center'><span style='font-size:12pt;'>%1</span></p>").arg(QString::number(mToday.pm25)));
@@ -352,16 +379,8 @@ void Widget::updataUI()
 
         //3.2 更新天气类型
         {
-            QString iconPath = mTypeMap.value(mDay[i].type);
-            if (iconPath.isEmpty()) {
-                QStringList parts = mDay[i].type.split("转");
-                iconPath = mTypeMap.value(parts[0], ":/res/type/tq-1.png");
-            }
             mTypeIconList[i]->setStyleSheet("border-image: none;");
-            auto it = m_iconCache.constFind(iconPath);
-            if (it == m_iconCache.constEnd())
-                it = m_iconCache.insert(iconPath, QPixmap(iconPath));
-            mTypeIconList[i]->setPixmap(it.value());
+            mTypeIconList[i]->setPixmap(renderWeatherIcon(mDay[i].type));
         }
         mTypeList[i]->setText(
             QString("<p align='center'><span style='font-size:12pt;'>%1</span></p>")
@@ -415,7 +434,7 @@ void Widget::showDefaultUI()
         "<p align='center'><span style='font-size:16pt;'>加载中...</span></p>");
 
     ui->lblTypeIcon->setStyleSheet("");
-    ui->lblTypeIcon->setPixmap(QPixmap(":/res/type/tq-1.png"));
+    ui->lblTypeIcon->setPixmap(renderWeatherIcon("晴"));
     ui->lblTemp->setText(
         "<html><head/><body><p align='center'>"
         "<span style='font-size:35pt; font-weight:700;'>--℃</span>"
@@ -425,8 +444,12 @@ void Widget::showDefaultUI()
     ui->lblLowHigh->setText(
         "<p align='center'><span style='font-size:14pt;'>--℃~--℃</span></p>");
 
-    ui->lblGanmao->setText(
-        "<p align='left'><span style='font-size:20pt;'>感冒指数:--</span></p>");
+    ui->lblGanmao->setText("感冒指数: --");
+    ui->lblNotice->setText("温馨提示: --");
+    ui->lblSunrise->setText("日出 --:--");
+    ui->lblSunset->setText("日落 --:--");
+    ui->lblUpdateTime->setText("数据更新: --:--");
+    ui->lblPM10->setText("PM10: --");
     ui->lblWindFx->setText(
         "<p align='center'><span style='font-size:12pt;'>--</span></p>");
     ui->lblWindFl->setText(
@@ -449,7 +472,7 @@ void Widget::showDefaultUI()
         mDateList[i]->setText(
             "<p align='center'><span style='font-size:12pt;'>--/--</span></p>");
         mTypeIconList[i]->setStyleSheet("border-image: none;");
-        mTypeIconList[i]->setPixmap(QPixmap(":/res/type/tq-1.png"));
+        mTypeIconList[i]->setPixmap(renderWeatherIcon("晴"));
         mTypeList[i]->setText(
             "<p align='center'><span style='font-size:12pt;'>--</span></p>");
         mAqiList[i]->setStyleSheet("background-color: rgb(180, 180, 180);color: rgb(255, 255, 255);");

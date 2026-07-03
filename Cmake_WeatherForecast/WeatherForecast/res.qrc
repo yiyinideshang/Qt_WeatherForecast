@@ -63,5 +63,7 @@
         <file>res/type/zhongxue.png</file>
         <file>res/type/zhongyu.png</file>
         <file>res/city_weather.json</file>
+        <file>res/weatherforecast_icon/iconfont.ttf</file>
+        <file>res/weatherforecast_icon/iconfont.json</file>
     </qresource>
 </RCC>

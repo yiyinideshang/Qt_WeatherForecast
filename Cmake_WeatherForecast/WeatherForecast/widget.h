@@ -11,6 +11,7 @@
 #include <QMap>
 #include <QPixmap>
 #include <QListWidget>
+#include <QFont>
 #include "apiclient.h"
 #include "chartwidget.h"
 #include "datacache.h"
@@ -44,6 +45,8 @@ private slots:
 private:
     void showCityDropdown();
     bool loadRecentCache(QString &outCityCode);
+    void loadIconFont();
+    QPixmap renderWeatherIcon(const QString &weather);
 
     Ui::Widget *ui;
     QMenu *mExitMenu;
@@ -64,8 +67,9 @@ private:
     QList<QLabel*> mFxList;
     QList<QLabel*> mFlList;
 
-    QMap<QString,QString> mTypeMap;
+    QMap<QString, QChar> mIconCodeMap;
     QMap<QString, QPixmap> m_iconCache;
+    QFont m_iconFont;
 
     ApiClient *m_apiClient;
     DataCache *m_cache;

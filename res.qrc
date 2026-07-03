@@ -63,5 +63,7 @@
         <file>city_weather/city_weather.json</file>
         <file>res/WeatherForecast.png</file>
         <file>res/MiniWindow.png</file>
+        <file>res/weatherforecast_icon/iconfont.ttf</file>
+        <file>res/weatherforecast_icon/iconfont.json</file>
     </qresource>
 </RCC>

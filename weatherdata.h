@@ -31,7 +31,9 @@ public:
     double wendu;
     QString shidu;
     int pm25;
+    int pm10 = 0;
     QString quality;
+    QString updateTime;
 
     QString type;
 
@@ -60,6 +62,9 @@ public:
     QString week;
 
     QString type;
+    QString sunrise;
+    QString sunset;
+    QString notice;
 
     QString fl;
     QString fx;

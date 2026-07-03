@@ -1,0 +1,10 @@
+debug/apiclient.o
+debug/chartwidget.o
+debug/datacache.o
+debug/main.o
+debug/widget.o
+debug/qrc_res.o
+debug/moc_apiclient.o
+debug/moc_chartwidget.o
+debug/moc_datacache.o
+debug/moc_widget.o

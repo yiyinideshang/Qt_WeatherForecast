@@ -33,7 +33,7 @@ void DataCache::initDb()
         "date TEXT, city TEXT, ganmao TEXT,"
         "wendu REAL, shidu TEXT, pm25 INTEGER, quality TEXT,"
         "type TEXT, fl TEXT, fx TEXT, high INTEGER, low INTEGER,"
-        "update_time TEXT)"
+        "update_time TEXT, pm10 INTEGER DEFAULT 0)"
     );
     query.exec(
         "CREATE TABLE IF NOT EXISTS cache_day ("
@@ -41,13 +41,21 @@ void DataCache::initDb()
         "idx INTEGER,"
         "date TEXT, week TEXT, type TEXT,"
         "high INTEGER, low INTEGER, fl TEXT, fx TEXT, aqi INTEGER,"
+        "sunrise TEXT DEFAULT '', sunset TEXT DEFAULT '', notice TEXT DEFAULT '',"
         "PRIMARY KEY (city_code, idx))"
     );
+    // 兼容旧表——添加缺失列，忽略已存在错误
+    query.exec("ALTER TABLE cache_today ADD COLUMN pm10 INTEGER DEFAULT 0");
+    query.exec("ALTER TABLE cache_day ADD COLUMN sunrise TEXT DEFAULT ''");
+    query.exec("ALTER TABLE cache_day ADD COLUMN sunset TEXT DEFAULT ''");
+    query.exec("ALTER TABLE cache_day ADD COLUMN notice TEXT DEFAULT ''");
 }
 
 static bool isExpired(const QString &updateTime)
 {
     QDateTime dt = QDateTime::fromString(updateTime, Qt::ISODate);
+    if (!dt.isValid())
+        dt = QDateTime::fromString(updateTime, "yyyy-MM-dd HH:mm:ss");
     return !dt.isValid() || dt.secsTo(QDateTime::currentDateTime()) > 7200;
 }
 
@@ -72,12 +80,14 @@ bool DataCache::load(const QString &cityCode, Today &today, Day day[6])
     today.wendu = query.value("wendu").toDouble();
     today.shidu = query.value("shidu").toString();
     today.pm25 = query.value("pm25").toInt();
+    today.pm10 = query.value("pm10").toInt();
     today.quality = query.value("quality").toString();
     today.type = query.value("type").toString();
     today.fl = query.value("fl").toString();
     today.fx = query.value("fx").toString();
     today.high = query.value("high").toInt();
     today.low = query.value("low").toInt();
+    today.updateTime = query.value("update_time").toString();
 
     query.prepare("SELECT * FROM cache_day WHERE city_code = ? ORDER BY idx");
     query.addBindValue(cityCode);
@@ -94,6 +104,9 @@ bool DataCache::load(const QString &cityCode, Today &today, Day day[6])
         day[i].fl = query.value("fl").toString();
         day[i].fx = query.value("fx").toString();
         day[i].aqi = query.value("aqi").toInt();
+        day[i].sunrise = query.value("sunrise").toString();
+        day[i].sunset = query.value("sunset").toString();
+        day[i].notice = query.value("notice").toString();
         ++i;
     }
 
@@ -107,13 +120,15 @@ void DataCache::save(const QString &cityCode, const Today &today, const Day day[
         return;
 
     QSqlQuery query(m_db);
-    QString now = QDateTime::currentDateTime().toString(Qt::ISODate);
+    QString now = today.updateTime.isEmpty()
+        ? QDateTime::currentDateTime().toString(Qt::ISODate)
+        : today.updateTime;
 
     query.prepare(
         "INSERT OR REPLACE INTO cache_today "
         "(city_code, date, city, ganmao, wendu, shidu, pm25, quality, "
-        "type, fl, fx, high, low, update_time) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        "type, fl, fx, high, low, update_time, pm10) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
     );
     query.addBindValue(cityCode);
     query.addBindValue(today.date);
@@ -129,6 +144,7 @@ void DataCache::save(const QString &cityCode, const Today &today, const Day day[
     query.addBindValue(today.high);
     query.addBindValue(today.low);
     query.addBindValue(now);
+    query.addBindValue(today.pm10);
     query.exec();
 
     query.prepare("DELETE FROM cache_day WHERE city_code = ?");
@@ -137,9 +153,10 @@ void DataCache::save(const QString &cityCode, const Today &today, const Day day[
 
     for (int i = 0; i < 6; ++i) {
         query.prepare(
-            "INSERT INTO cache_day "
-            "(city_code, idx, date, week, type, high, low, fl, fx, aqi) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?)"
+            "INSERT OR REPLACE INTO cache_day "
+            "(city_code, idx, date, week, type, high, low, fl, fx, aqi, "
+            "sunrise, sunset, notice) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
         );
         query.addBindValue(cityCode);
         query.addBindValue(i);
@@ -151,6 +168,9 @@ void DataCache::save(const QString &cityCode, const Today &today, const Day day[
         query.addBindValue(day[i].fl);
         query.addBindValue(day[i].fx);
         query.addBindValue(day[i].aqi);
+        query.addBindValue(day[i].sunrise);
+        query.addBindValue(day[i].sunset);
+        query.addBindValue(day[i].notice);
         query.exec();
     }
 
