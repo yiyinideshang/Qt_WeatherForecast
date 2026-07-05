@@ -98,18 +98,18 @@ public:
     QLabel *lblUpdateTime;
     QWidget *widget_6;
     QGridLayout *gridLayout_8;
-    QLabel *lblFl0;
-    QLabel *lblFl1;
-    QLabel *lblFl2;
-    QLabel *lblFl3;
-    QLabel *lblFl4;
-    QLabel *lblFl5;
     QLabel *lblFX0;
     QLabel *lblFX1;
     QLabel *lblFX2;
     QLabel *lblFX3;
     QLabel *lblFX4;
     QLabel *lblFX5;
+    QLabel *lblFl0;
+    QLabel *lblFl1;
+    QLabel *lblFl2;
+    QLabel *lblFl3;
+    QLabel *lblFl4;
+    QLabel *lblFl5;
 
     void setupUi(QWidget *Widget)
     {
@@ -502,65 +502,65 @@ public:
 "}"));
         gridLayout_8 = new QGridLayout(widget_6);
         gridLayout_8->setObjectName("gridLayout_8");
-        lblFl0 = new QLabel(widget_6);
-        lblFl0->setObjectName("lblFl0");
-
-        gridLayout_8->addWidget(lblFl0, 0, 0, 1, 1);
-
-        lblFl1 = new QLabel(widget_6);
-        lblFl1->setObjectName("lblFl1");
-
-        gridLayout_8->addWidget(lblFl1, 0, 1, 1, 1);
-
-        lblFl2 = new QLabel(widget_6);
-        lblFl2->setObjectName("lblFl2");
-
-        gridLayout_8->addWidget(lblFl2, 0, 2, 1, 1);
-
-        lblFl3 = new QLabel(widget_6);
-        lblFl3->setObjectName("lblFl3");
-
-        gridLayout_8->addWidget(lblFl3, 0, 3, 1, 1);
-
-        lblFl4 = new QLabel(widget_6);
-        lblFl4->setObjectName("lblFl4");
-
-        gridLayout_8->addWidget(lblFl4, 0, 4, 1, 1);
-
-        lblFl5 = new QLabel(widget_6);
-        lblFl5->setObjectName("lblFl5");
-
-        gridLayout_8->addWidget(lblFl5, 0, 5, 1, 1);
-
         lblFX0 = new QLabel(widget_6);
         lblFX0->setObjectName("lblFX0");
 
-        gridLayout_8->addWidget(lblFX0, 1, 0, 1, 1);
+        gridLayout_8->addWidget(lblFX0, 0, 0, 1, 1);
 
         lblFX1 = new QLabel(widget_6);
         lblFX1->setObjectName("lblFX1");
 
-        gridLayout_8->addWidget(lblFX1, 1, 1, 1, 1);
+        gridLayout_8->addWidget(lblFX1, 0, 1, 1, 1);
 
         lblFX2 = new QLabel(widget_6);
         lblFX2->setObjectName("lblFX2");
 
-        gridLayout_8->addWidget(lblFX2, 1, 2, 1, 1);
+        gridLayout_8->addWidget(lblFX2, 0, 2, 1, 1);
 
         lblFX3 = new QLabel(widget_6);
         lblFX3->setObjectName("lblFX3");
 
-        gridLayout_8->addWidget(lblFX3, 1, 3, 1, 1);
+        gridLayout_8->addWidget(lblFX3, 0, 3, 1, 1);
 
         lblFX4 = new QLabel(widget_6);
         lblFX4->setObjectName("lblFX4");
 
-        gridLayout_8->addWidget(lblFX4, 1, 4, 1, 1);
+        gridLayout_8->addWidget(lblFX4, 0, 4, 1, 1);
 
         lblFX5 = new QLabel(widget_6);
         lblFX5->setObjectName("lblFX5");
 
-        gridLayout_8->addWidget(lblFX5, 1, 5, 1, 1);
+        gridLayout_8->addWidget(lblFX5, 0, 5, 1, 1);
+
+        lblFl0 = new QLabel(widget_6);
+        lblFl0->setObjectName("lblFl0");
+
+        gridLayout_8->addWidget(lblFl0, 1, 0, 1, 1);
+
+        lblFl1 = new QLabel(widget_6);
+        lblFl1->setObjectName("lblFl1");
+
+        gridLayout_8->addWidget(lblFl1, 1, 1, 1, 1);
+
+        lblFl2 = new QLabel(widget_6);
+        lblFl2->setObjectName("lblFl2");
+
+        gridLayout_8->addWidget(lblFl2, 1, 2, 1, 1);
+
+        lblFl3 = new QLabel(widget_6);
+        lblFl3->setObjectName("lblFl3");
+
+        gridLayout_8->addWidget(lblFl3, 1, 3, 1, 1);
+
+        lblFl4 = new QLabel(widget_6);
+        lblFl4->setObjectName("lblFl4");
+
+        gridLayout_8->addWidget(lblFl4, 1, 4, 1, 1);
+
+        lblFl5 = new QLabel(widget_6);
+        lblFl5->setObjectName("lblFl5");
+
+        gridLayout_8->addWidget(lblFl5, 1, 5, 1, 1);
 
 
         retranslateUi(Widget);
@@ -633,18 +633,18 @@ public:
         lblSunrise->setText(QCoreApplication::translate("Widget", "\346\227\245\345\207\272 --:--", nullptr));
         lblSunset->setText(QCoreApplication::translate("Widget", "\346\227\245\350\220\275 --:--", nullptr));
         lblUpdateTime->setText(QCoreApplication::translate("Widget", "\346\225\260\346\215\256\346\233\264\346\226\260: --:--", nullptr));
-        lblFl0->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\344\270\234\351\243\216</span></p></body></html>", nullptr));
-        lblFl1->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\344\270\234\345\214\227\351\243\216</span></p></body></html>", nullptr));
-        lblFl2->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\350\245\277\345\214\227\351\243\216</span></p></body></html>", nullptr));
-        lblFl3->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\350\245\277\345\214\227\351\243\216</span></p></body></html>", nullptr));
-        lblFl4->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\350\245\277\351\243\216</span></p></body></html>", nullptr));
-        lblFl5->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\350\245\277\351\243\216</span></p></body></html>", nullptr));
-        lblFX0->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">2\347\272\247</span></p></body></html>", nullptr));
-        lblFX1->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">3\347\272\247</span></p></body></html>", nullptr));
-        lblFX2->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">2\347\272\247</span></p></body></html>", nullptr));
-        lblFX3->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">1\347\272\247</span></p></body></html>", nullptr));
-        lblFX4->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">2\347\272\247</span></p></body></html>", nullptr));
-        lblFX5->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">2\347\272\247</span></p></body></html>", nullptr));
+        lblFX0->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\344\270\234\351\243\216</span></p></body></html>", nullptr));
+        lblFX1->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\344\270\234\345\214\227\351\243\216</span></p></body></html>", nullptr));
+        lblFX2->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\350\245\277\345\214\227\351\243\216</span></p></body></html>", nullptr));
+        lblFX3->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\350\245\277\345\214\227\351\243\216</span></p></body></html>", nullptr));
+        lblFX4->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\350\245\277\351\243\216</span></p></body></html>", nullptr));
+        lblFX5->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\350\245\277\351\243\216</span></p></body></html>", nullptr));
+        lblFl0->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">2\347\272\247</span></p></body></html>", nullptr));
+        lblFl1->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">3\347\272\247</span></p></body></html>", nullptr));
+        lblFl2->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">2\347\272\247</span></p></body></html>", nullptr));
+        lblFl3->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">1\347\272\247</span></p></body></html>", nullptr));
+        lblFl4->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">2\347\272\247</span></p></body></html>", nullptr));
+        lblFl5->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">2\347\272\247</span></p></body></html>", nullptr));
     } // retranslateUi
 
 };
