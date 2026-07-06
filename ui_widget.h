@@ -42,6 +42,8 @@ public:
     QLabel *lblDate3;
     QLabel *lblDate4;
     QLabel *lblDate5;
+    QLabel *lblWeek6;
+    QLabel *lblDate6;
     QWidget *widget_11;
     QGridLayout *gridLayout_6;
     QLabel *lblTypeIcon0;
@@ -56,6 +58,8 @@ public:
     QLabel *lblType3;
     QLabel *lblType4;
     QLabel *lblType5;
+    QLabel *lblTypeIcon6;
+    QLabel *lblType6;
     QWidget *widget_12;
     QHBoxLayout *horizontalLayout_4;
     QLabel *lblquality0;
@@ -64,6 +68,7 @@ public:
     QLabel *lblquality3;
     QLabel *lblquality4;
     QLabel *lblquality5;
+    QLabel *lblquality6;
     QWidget *widget_2;
     QLabel *lblTemp;
     QLabel *lblCity;
@@ -110,12 +115,14 @@ public:
     QLabel *lblFl3;
     QLabel *lblFl4;
     QLabel *lblFl5;
+    QLabel *lblFX6;
+    QLabel *lblFl6;
 
     void setupUi(QWidget *Widget)
     {
         if (Widget->objectName().isEmpty())
             Widget->setObjectName("Widget");
-        Widget->resize(1000, 600);
+        Widget->resize(1100, 600);
         QSizePolicy sizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
         sizePolicy.setHorizontalStretch(0);
         sizePolicy.setVerticalStretch(0);
@@ -134,19 +141,19 @@ public:
 "}"));
         widget_5 = new QWidget(Widget);
         widget_5->setObjectName("widget_5");
-        widget_5->setGeometry(QRect(640, 310, 361, 151));
+        widget_5->setGeometry(QRect(620, 310, 470, 151));
         lblHighCurve = new QLabel(widget_5);
         lblHighCurve->setObjectName("lblHighCurve");
-        lblHighCurve->setGeometry(QRect(0, 0, 351, 81));
+        lblHighCurve->setGeometry(QRect(0, 0, 460, 81));
         lblLowCurve = new QLabel(widget_5);
         lblLowCurve->setObjectName("lblLowCurve");
-        lblLowCurve->setGeometry(QRect(0, 70, 361, 81));
+        lblLowCurve->setGeometry(QRect(0, 70, 470, 81));
         widget_3 = new QWidget(Widget);
         widget_3->setObjectName("widget_3");
-        widget_3->setGeometry(QRect(640, 80, 351, 221));
+        widget_3->setGeometry(QRect(620, 80, 470, 221));
         widget_10 = new QWidget(widget_3);
         widget_10->setObjectName("widget_10");
-        widget_10->setGeometry(QRect(-10, 0, 361, 61));
+        widget_10->setGeometry(QRect(-10, 0, 480, 61));
         gridLayout_5 = new QGridLayout(widget_10);
         gridLayout_5->setObjectName("gridLayout_5");
         lblWeek0 = new QLabel(widget_10);
@@ -209,9 +216,19 @@ public:
 
         gridLayout_5->addWidget(lblDate5, 1, 5, 1, 1);
 
+        lblWeek6 = new QLabel(widget_10);
+        lblWeek6->setObjectName("lblWeek6");
+
+        gridLayout_5->addWidget(lblWeek6, 0, 6, 1, 1);
+
+        lblDate6 = new QLabel(widget_10);
+        lblDate6->setObjectName("lblDate6");
+
+        gridLayout_5->addWidget(lblDate6, 1, 6, 1, 1);
+
         widget_11 = new QWidget(widget_3);
         widget_11->setObjectName("widget_11");
-        widget_11->setGeometry(QRect(-10, 60, 361, 81));
+        widget_11->setGeometry(QRect(-10, 60, 480, 81));
         gridLayout_6 = new QGridLayout(widget_11);
         gridLayout_6->setObjectName("gridLayout_6");
         lblTypeIcon0 = new QLabel(widget_11);
@@ -286,9 +303,21 @@ public:
 
         gridLayout_6->addWidget(lblType5, 1, 5, 1, 1);
 
+        lblTypeIcon6 = new QLabel(widget_11);
+        lblTypeIcon6->setObjectName("lblTypeIcon6");
+        lblTypeIcon6->setStyleSheet(QString::fromUtf8("border-image: url(:/res/type/tq-1.png);"));
+        lblTypeIcon6->setScaledContents(true);
+
+        gridLayout_6->addWidget(lblTypeIcon6, 0, 6, 1, 1);
+
+        lblType6 = new QLabel(widget_11);
+        lblType6->setObjectName("lblType6");
+
+        gridLayout_6->addWidget(lblType6, 1, 6, 1, 1);
+
         widget_12 = new QWidget(widget_3);
         widget_12->setObjectName("widget_12");
-        widget_12->setGeometry(QRect(-10, 150, 361, 61));
+        widget_12->setGeometry(QRect(-10, 150, 480, 61));
         horizontalLayout_4 = new QHBoxLayout(widget_12);
         horizontalLayout_4->setObjectName("horizontalLayout_4");
         lblquality0 = new QLabel(widget_12);
@@ -327,6 +356,12 @@ public:
 
         horizontalLayout_4->addWidget(lblquality5);
 
+        lblquality6 = new QLabel(widget_12);
+        lblquality6->setObjectName("lblquality6");
+        lblquality6->setStyleSheet(QString::fromUtf8("background-color: rgb(180, 180, 180);"));
+
+        horizontalLayout_4->addWidget(lblquality6);
+
         widget_2 = new QWidget(Widget);
         widget_2->setObjectName("widget_2");
         widget_2->setGeometry(QRect(10, 80, 411, 121));
@@ -349,7 +384,7 @@ public:
         lblLowHigh->setGeometry(QRect(230, 90, 101, 31));
         widget = new QWidget(Widget);
         widget->setObjectName("widget");
-        widget->setGeometry(QRect(0, 0, 981, 51));
+        widget->setGeometry(QRect(0, 0, 1080, 51));
         widget->setStyleSheet(QString::fromUtf8("color: rgb(0, 0, 0);"));
         horizontalLayout_3 = new QHBoxLayout(widget);
         horizontalLayout_3->setObjectName("horizontalLayout_3");
@@ -489,11 +524,11 @@ public:
         lblSunset->setStyleSheet(QString::fromUtf8("font-size:11pt; color: #e0e0e0;"));
         lblUpdateTime = new QLabel(Widget);
         lblUpdateTime->setObjectName("lblUpdateTime");
-        lblUpdateTime->setGeometry(QRect(750, 583, 230, 16));
+        lblUpdateTime->setGeometry(QRect(850, 583, 230, 16));
         lblUpdateTime->setStyleSheet(QString::fromUtf8("font-size:10pt; color: #e0e0e0;"));
         widget_6 = new QWidget(Widget);
         widget_6->setObjectName("widget_6");
-        widget_6->setGeometry(QRect(630, 480, 361, 101));
+        widget_6->setGeometry(QRect(620, 480, 470, 101));
         widget_6->setStyleSheet(QString::fromUtf8("QLabel {\n"
 "    border-radius: 8px;            /* \345\234\206\350\247\222\345\215\212\345\276\204 */\n"
 "	background-color: rgb(128, 128, 128);\n"
@@ -562,6 +597,16 @@ public:
 
         gridLayout_8->addWidget(lblFl5, 1, 5, 1, 1);
 
+        lblFX6 = new QLabel(widget_6);
+        lblFX6->setObjectName("lblFX6");
+
+        gridLayout_8->addWidget(lblFX6, 0, 6, 1, 1);
+
+        lblFl6 = new QLabel(widget_6);
+        lblFl6->setObjectName("lblFl6");
+
+        gridLayout_8->addWidget(lblFl6, 1, 6, 1, 1);
+
 
         retranslateUi(Widget);
 
@@ -588,6 +633,8 @@ public:
         lblDate3->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">01/04</span></p></body></html>", nullptr));
         lblDate4->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">01/05</span></p></body></html>", nullptr));
         lblDate5->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">01/06</span></p></body></html>", nullptr));
+        lblWeek6->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">--</span></p></body></html>", nullptr));
+        lblDate6->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">--/--</span></p></body></html>", nullptr));
         lblTypeIcon0->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><br/></p></body></html>", nullptr));
         lblTypeIcon1->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><br/></p></body></html>", nullptr));
         lblTypeIcon2->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><br/></p></body></html>", nullptr));
@@ -600,12 +647,15 @@ public:
         lblType3->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\345\244\232\344\272\221</span></p></body></html>", nullptr));
         lblType4->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\344\270\255\351\233\250</span></p></body></html>", nullptr));
         lblType5->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\346\232\264\351\233\250</span></p></body></html>", nullptr));
+        lblTypeIcon6->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><br/></p></body></html>", nullptr));
+        lblType6->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">--</span></p></body></html>", nullptr));
         lblquality0->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\344\274\230</span></p></body></html>", nullptr));
         lblquality1->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\350\211\257</span></p></body></html>", nullptr));
         lblquality2->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\350\275\273\345\272\246</span></p></body></html>", nullptr));
         lblquality3->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\344\270\255\345\272\246</span></p></body></html>", nullptr));
         lblquality4->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\351\207\215\345\272\246</span></p></body></html>", nullptr));
         lblquality5->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">\344\270\245\351\207\215</span></p></body></html>", nullptr));
+        lblquality6->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">--</span></p></body></html>", nullptr));
         lblTemp->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:48pt; font-weight:700;\">32\342\204\203</span></p></body></html>", nullptr));
         lblCity->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:18pt;\">\345\214\227\344\272\254</span></p></body></html>", nullptr));
         lblTypeIcon->setText(QString());
@@ -645,6 +695,8 @@ public:
         lblFl3->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">1\347\272\247</span></p></body></html>", nullptr));
         lblFl4->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">2\347\272\247</span></p></body></html>", nullptr));
         lblFl5->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">2\347\272\247</span></p></body></html>", nullptr));
+        lblFX6->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">--</span></p></body></html>", nullptr));
+        lblFl6->setText(QCoreApplication::translate("Widget", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt;\">--</span></p></body></html>", nullptr));
     } // retranslateUi
 
 };

@@ -19,21 +19,23 @@
 #include <QPainter>
 #include "weatherTool.h"
 
+// 步骤 1：初始化成员列表与 UI 设置
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget)
 {
+    //解析 widget.ui，动态创建所有子控件，并建立信号-槽自动连接。
     ui->setupUi(this);
 
     // 加上这一句：强制让 QWidget 遵循样式表去绘制背景
     this->setAttribute(Qt::WA_StyledBackground, true);
 
-    //1. 设置窗口属性
-    setWindowFlag(Qt::FramelessWindowHint);//设置窗口无边框
-    setFixedSize(width(),height());         //设置固定窗口大小
-    setWindowIcon(QIcon("://res/WeatherForecast.png"));
+// 步骤 2：设置窗口属性
+    setWindowFlag(Qt::FramelessWindowHint); //设置窗口无边框
+    setFixedSize(width(),height());         //设置固定窗口尺寸为 1000x600
+    setWindowIcon(QIcon("://res/WeatherForecast.png")); //设置任务栏和窗口图标
 
-    //2. 构建右键菜单,退出程序
+// 步骤 3：构建右键菜单（最小化到托盘 + 退出）
     mExitMenu = new QMenu(this);
     mExitMenu->setStyleSheet("QMenu { color: black; } QMenu::item { color: black; }");
 
@@ -56,23 +58,25 @@ Widget::Widget(QWidget *parent)
         qApp->exit(0);
     });
 
-    //将控件添加到控件数组
+// 步骤 4：组织控件数组:将 UI 中的 6 组标签控件放入 QList，便于在 updataUI() 中用循环批量更新。
     //星期和日期
-    mWeekList<<ui->lblWeek0<<ui->lblWeek1<<ui->lblWeek2<<ui->lblWeek3<<ui->lblWeek4<<ui->lblWeek5;
-    mDateList<<ui->lblDate0<<ui->lblDate1<<ui->lblDate2<<ui->lblDate3<<ui->lblDate4<<ui->lblDate5;
+    mWeekList<<ui->lblWeek0<<ui->lblWeek1<<ui->lblWeek2<<ui->lblWeek3<<ui->lblWeek4<<ui->lblWeek5<<ui->lblWeek6;
+    mDateList<<ui->lblDate0<<ui->lblDate1<<ui->lblDate2<<ui->lblDate3<<ui->lblDate4<<ui->lblDate5<<ui->lblDate6;
     //天气和天气图标
-    mTypeList<<ui->lblType0<<ui->lblType1<<ui->lblType2<<ui->lblType3<<ui->lblType4<<ui->lblType5;
-    mTypeIconList<<ui->lblTypeIcon0<<ui->lblTypeIcon1<<ui->lblTypeIcon2<<ui->lblTypeIcon3<<ui->lblTypeIcon4<<ui->lblTypeIcon5;
+    mTypeList<<ui->lblType0<<ui->lblType1<<ui->lblType2<<ui->lblType3<<ui->lblType4<<ui->lblType5<<ui->lblType6;
+    mTypeIconList<<ui->lblTypeIcon0<<ui->lblTypeIcon1<<ui->lblTypeIcon2<<ui->lblTypeIcon3<<ui->lblTypeIcon4<<ui->lblTypeIcon5<<ui->lblTypeIcon6;
     //天气指数
-    mAqiList<<ui->lblquality0<<ui->lblquality1<<ui->lblquality2<<ui->lblquality3<<ui->lblquality4<<ui->lblquality5;
+    mAqiList<<ui->lblquality0<<ui->lblquality1<<ui->lblquality2<<ui->lblquality3<<ui->lblquality4<<ui->lblquality5<<ui->lblquality6;
     //风力和风向
-    mFxList<<ui->lblFX0<<ui->lblFX1<<ui->lblFX2<<ui->lblFX3<<ui->lblFX4<<ui->lblFX5;
-    mFlList<<ui->lblFl0<<ui->lblFl1<<ui->lblFl2<<ui->lblFl3<<ui->lblFl4<<ui->lblFl5;
+    mFxList<<ui->lblFX0<<ui->lblFX1<<ui->lblFX2<<ui->lblFX3<<ui->lblFX4<<ui->lblFX5<<ui->lblFX6;
+    mFlList<<ui->lblFl0<<ui->lblFl1<<ui->lblFl2<<ui->lblFl3<<ui->lblFl4<<ui->lblFl5<<ui->lblFl6;
 
+// 步骤 5：构建天气类型到图标的映射表
     loadIconFont();
 
+// 步骤 6：创建搜索框下拉列表（最近访问城市）
     m_cityDropdown = new QListWidget;
-    m_cityDropdown->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
+    m_cityDropdown->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);//工具窗口|无边框窗口
     m_cityDropdown->setFocusPolicy(Qt::NoFocus);
     m_cityDropdown->setFrameShape(QFrame::NoFrame);
     m_cityDropdown->setStyleSheet(
@@ -80,17 +84,31 @@ Widget::Widget(QWidget *parent)
         "QListWidget::item { padding: 6px 12px; }"
         "QListWidget::item:hover { background: #e0e0e0; }"
     );
-    m_cityDropdown->hide();
+    m_cityDropdown->hide();//创建完毕一个空的QListWidget下拉列表后:主动隐藏下拉框
+
+    //当用户点击列表中的某一项时，通过信号itemClicked把这个被点击的项传递给lambda槽函数进行处理
+    //这个信号携带item参数,表示被点击的是具体哪一个列表项
+    //在这个lambda槽函数里面进行判断,
+    //1. 如果点击的是普通城市,则显示在lineEdit_2上,并搜索该城市的信息,
+    //2. 如果点击的是被贴了"__clear__"的标签的"清空缓存"列表项,则执行清空缓存操作
     connect(m_cityDropdown, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
+        // 先检查项是否可选择（如果是分隔符等不可选项，直接返回）
         if (!(item->flags() & Qt::ItemIsSelectable))
             return;
+
+        // 点击时读取标签：如果点击的该项在指定为“UserRole”下的数据是“__clear__”
+        // 则通过 UserRole 数据区分“清空缓存”特殊项
         if (item->data(Qt::UserRole).toString() == "__clear__") {
-            m_cache->clearAll();
-            QSettings().remove("lastCityCode");
-            m_cityDropdown->hide();
+            m_cache->clearAll();//清除缓存信息
+            QSettings().remove("lastCityCode");//删除持久化存储中的“上次城市代码”记录。
+            ui->lineEdit_2->clear();//清除lineEdit_2的文本信息
+            m_cityDropdown->hide();//清空缓存后,隐藏下拉框
             return;
         }
-        m_cityDropdown->hide();
+
+        //否则,点击的是一个普通的城市项
+        //将点击的列表项输入到 lineEdit_2 上,并调用on_pushButton_2_clicked槽函数,完成搜索功能
+        m_cityDropdown->hide();//用户选择了某个城市后,隐藏下拉框
         ui->lineEdit_2->setText(item->text());
         on_pushButton_2_clicked();
     });
@@ -99,7 +117,8 @@ Widget::Widget(QWidget *parent)
     ui->lineEdit_2->setContextMenuPolicy(Qt::NoContextMenu);
     connect(ui->lineEdit_2, &QLineEdit::returnPressed, this, &Widget::on_pushButton_2_clicked);
 
-    //3. 网络请求
+// 步骤 7：初始化网络客户端并连接信号
+    //网络请求
     //关联信号和槽,当getWeatherInfo发送http请求完毕后,服务器返回数据,此时:
     //mNetAccessManger就会发送一个finished信号,并将QNetworkReply的指针携带服务器的响应,作为参数传递出去,
     //进而调用onReplied槽函数作出 处理响应动作
@@ -126,19 +145,22 @@ Widget::Widget(QWidget *parent)
         }
     });
 
+// 步骤 8：初始化本地缓存层
     m_cache = new DataCache(this);
 
+// 步骤 9：立即显示 UI + 后台网络请求
     QSettings settings;
     QString lastCityCode = settings.value("lastCityCode").toString();
 
     if ((!lastCityCode.isEmpty() && m_cache->load(lastCityCode, mToday, mDay)) ||
         loadRecentCache(lastCityCode)) {
         updataUI();
-        m_currentCityCode = lastCityCode;
-        m_startupCacheLoaded = true;
+        m_currentCityCode = lastCityCode;//记录当前加载的城市编码，用于后续搜索时去重。
+        m_startupCacheLoaded = true;//标志控制首次失败时的弹窗文案
     } else
         showDefaultUI();
 
+// 将网络请求推迟到事件循环启动后执行，避免 `m_highChart`/`m_lowChart` 尚未初始化就被访问。
     QTimer::singleShot(0, this, [this, lastCityCode]() {
         if (!lastCityCode.isEmpty())
             m_apiClient->getWeatherInfo(lastCityCode);
@@ -146,13 +168,16 @@ Widget::Widget(QWidget *parent)
             m_apiClient->getLocationByIP();
     });
 
+//步骤 10：创建温度曲线控件
     ui->lblGanmao->setWordWrap(true);
 
+    //创建两个 ChartWidget 实例分别绘制高温（橙色）和低温（青色）曲线。
     m_highChart = new ChartWidget(QColor(255, 170, 0), ui->widget_5);
-    m_highChart->setGeometry(0, 0, 351, 81);
+    m_highChart->setGeometry(0, 0, 460, 81);
     m_lowChart = new ChartWidget(QColor(0, 255, 255), ui->widget_5);
-    m_lowChart->setGeometry(0, 70, 361, 81);
+    m_lowChart->setGeometry(0, 70, 470, 81);
 
+// 步骤 11：窗口位置恢复
     QSettings s;
     QPoint pos = s.value("windowPos").toPoint();
     if (!pos.isNull()) {
@@ -163,11 +188,13 @@ Widget::Widget(QWidget *parent)
         });
     }
 
+// 步骤 12：退出时保存窗口位置
     connect(qApp, &QApplication::aboutToQuit, this, [this]() {
         QSettings s;
         s.setValue("windowPos", this->pos());
     });
 
+// 步骤 13：系统托盘初始化
     m_trayIcon = new QSystemTrayIcon(QIcon("://res/WeatherForecast.png"), this);
     m_trayIcon->setToolTip("WeatherForecast");
 
@@ -178,7 +205,8 @@ Widget::Widget(QWidget *parent)
     m_trayIcon->setContextMenu(trayMenu);
 
     connect(showAct, &QAction::triggered, this, [this]() {
-        showNormal();
+        showNormal();//使用 showNormal() 而非 show()，确保任务栏最小化的窗口也能正确恢复。
+        //- 强制窗口置顶，避免藏在其他窗口后面。
         raise();
         activateWindow();
     });
@@ -359,8 +387,8 @@ void Widget::updataUI()
     else { quality = "严重"; ui->lblQuality->setStyleSheet("background-color: rgb(126, 0, 35);color: rgb(255, 255, 255);"); }
     ui->lblQuality->setText(QString("<p align='center'><span style='font-size:12pt;'>%1</span></p>").arg(quality));
 
-    //3. 更新六天
-    for(int i = 0;i<6;i++){
+    //3. 更新七天
+    for(int i = 0;i<7;i++){
         //3.1 更新日期和时间(周几)
         mWeekList[i]->setText(
             QString("<p align='center'><span style='font-size:12pt;'>%1</span></p>")
@@ -466,7 +494,7 @@ void Widget::showDefaultUI()
     ui->lblWeek1->setText("<p align='center'><span style='font-size:12pt;'>今天</span></p>");
     ui->lblWeek2->setText("<p align='center'><span style='font-size:12pt;'>明天</span></p>");
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
         mWeekList[i]->setText(
             "<p align='center'><span style='font-size:12pt;'>--</span></p>");
         mDateList[i]->setText(
@@ -506,20 +534,26 @@ bool Widget::eventFilter(QObject *obj, QEvent *event)
 void Widget::showCityDropdown()
 {
     m_cityDropdown->clear();
+    // 获取所有历史城市,之后遍历它,获得下拉列表框中的缓存城市
     auto cities = m_cache->getAllCachedCities();
 
+
+    //如果下拉列表框是空的,则只有一个"暂无缓存记录"列表项
     if (cities.isEmpty()) {
         QListWidgetItem *emptyItem = new QListWidgetItem("暂无缓存记录");
-        emptyItem->setFlags(Qt::ItemIsEnabled);
-        emptyItem->setForeground(QColor(160, 160, 160));
-        m_cityDropdown->addItem(emptyItem);
-    } else {
-        for (const auto &pair : qAsConst(cities))
-            m_cityDropdown->addItem(pair.second);
+        emptyItem->setFlags(Qt::ItemIsEnabled);//项处于启用状态
+        emptyItem->setForeground(QColor(160, 160, 160));//灰色
+        m_cityDropdown->addItem(emptyItem);//添加列表项
+    }
+    else {
+        for (const auto &pair : qAsConst(cities))//在这里遍历
+            m_cityDropdown->addItem(pair.second);//将历史城市缓存一个一个添加到下拉列表框中
+
+        //最后添加一个列表项:"清除缓存记录"
         QListWidgetItem *clearItem = new QListWidgetItem("清除缓存记录");
         clearItem->setData(Qt::UserRole, "__clear__");
-        clearItem->setForeground(QColor(160, 160, 160));
-        m_cityDropdown->addItem(clearItem);
+        clearItem->setForeground(QColor(160, 160, 160));//设置该项的文字颜色为浅灰色（RGB 各通道都是 160，即中灰色）。
+        m_cityDropdown->addItem(clearItem);//将 clearItem 这个已经构造好的列表项添加到 m_cityDropdown 这个下拉列表中。
     }
 
     QPoint pos = ui->lineEdit_2->mapToGlobal(QPoint(0, ui->lineEdit_2->height()));
@@ -560,10 +594,10 @@ void Widget::on_pushButton_2_clicked()
     m_apiClient->getWeatherInfo(cityName);
 }
 
-void Widget::onWeatherDataReady(const Today &today, const Day day[6])
+void Widget::onWeatherDataReady(const Today &today, const Day day[7])
 {
     mToday = today;
-    for (int i = 0; i < 6; ++i) mDay[i] = day[i];
+    for (int i = 0; i < 7; ++i) mDay[i] = day[i];
     updataUI();
 
     QSettings settings;
@@ -573,8 +607,8 @@ void Widget::onWeatherDataReady(const Today &today, const Day day[6])
         m_currentCityCode = cityCode;
     }
 
-    int high[6], low[6];
-    for (int i = 0; i < 6; ++i) {
+    int high[7], low[7];
+    for (int i = 0; i < 7; ++i) {
         high[i] = mDay[i].high;
         low[i] = mDay[i].low;
     }

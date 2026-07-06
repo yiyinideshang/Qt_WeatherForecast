@@ -155,7 +155,7 @@ void ApiClient::parseJson(const QByteArray &byteArray)
     }
     if (todayIdx < 0) todayIdx = 0;
 
-    //4. 按对齐后的索引填充 mDay[0..5]
+    //4. 按对齐后的索引填充 mDay[0..6]
     auto parseDay = [](const QJsonObject &obj, Day &d) {
         d.date = obj.value("ymd").toString();
         d.week = obj.value("week").toString();
@@ -183,8 +183,8 @@ void ApiClient::parseJson(const QByteArray &byteArray)
     else
         parseDay(forecastArray[todayIdx - 1].toObject(), mDay[0]);
 
-    // 今天 + 未来四天
-    int endIdx = qMin(todayIdx + 5, forecastArray.size());
+    // 今天 + 未来六天
+    int endIdx = qMin(todayIdx + 6, forecastArray.size());
     for (int i = todayIdx; i < endIdx; i++)
         parseDay(forecastArray[i].toObject(), mDay[i - todayIdx + 1]);
 

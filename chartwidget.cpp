@@ -11,9 +11,9 @@ ChartWidget::ChartWidget(const QColor &color, QWidget *parent)
 {
 }
 
-void ChartWidget::setData(const int temps[6])
+void ChartWidget::setData(const int temps[7])
 {
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 7; ++i) {
         m_temps[i] = temps[i];
     }
     update();
@@ -25,21 +25,21 @@ void ChartWidget::paintEvent(QPaintEvent *event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    int pointX[6];
-    int stepX = width() / 7;
-    for (int i = 0; i < 6; ++i) {
+    int pointX[7];
+    int stepX = width() / 8;
+    for (int i = 0; i < 7; ++i) {
         pointX[i] = stepX * (i + 1);
     }
 
     int tempSum = 0;
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 7; ++i) {
         tempSum += m_temps[i];
     }
-    int tempAverage = tempSum / 6;
+    int tempAverage = tempSum / 7;
 
-    int pointY[6];
+    int pointY[7];
     int yCenter = height() / 2;
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 7; ++i) {
         pointY[i] = yCenter - ((m_temps[i] - tempAverage) * INCREMENT);
     }
 
@@ -50,13 +50,13 @@ void ChartWidget::paintEvent(QPaintEvent *event)
     painter.setPen(pen);
     painter.setBrush(m_color);
 
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 7; ++i) {
         painter.drawEllipse(QPoint(pointX[i], pointY[i]), POINT_RADIUS, POINT_RADIUS);
         painter.drawText(pointX[i] - TEXT_OFFSET_X, pointY[i] - TEXT_OFFSET_Y,
                          QString::number(m_temps[i]) + "°");
     }
 
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 6; ++i) {
         if (i == 0) {
             pen.setStyle(Qt::DotLine);
             painter.setPen(pen);

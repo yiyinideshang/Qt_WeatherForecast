@@ -12,9 +12,11 @@
 
 class WeatherTool{
 public:
+    // 加载 json，解析为 mCityMap 和 mPinyinMap
+
     static void initCityMap()
     {
-        //1.读取文件
+        //1.读取文件:从 city_weather.json 资源文件加载全国城市编码映射表
         QString filePath = ":/city_weather/city_weather.json";
         QFile file(filePath);
         file.open(QIODevice::ReadOnly|QIODevice::Text);
@@ -48,6 +50,7 @@ public:
         }
     }
 
+//根据中文名查编码，支持补/去 "市" 后缀，支持补/去 "县" 后缀
     static QString getCityCode(QString cityName){
         if(mCityMap.isEmpty()){
             initCityMap();
@@ -71,6 +74,7 @@ public:
         return "";
     }
 
+//根据拼音查编码（用于 IP 定位）
     static QString getCityCodeByPinyin(const QString &pinyin){
         if(mCityMap.isEmpty()){
             initCityMap();
@@ -78,8 +82,9 @@ public:
         return mPinyinMap.value(pinyin.toLower());
     }
 private:
-    inline static QMap<QString,QString> mCityMap;
-    inline static QMap<QString,QString> mPinyinMap;
+    //提供静态方法根据城市中文名或拼音查询城市编码
+    inline static QMap<QString,QString> mCityMap;//城市中文名到编码
+    inline static QMap<QString,QString> mPinyinMap;//城市拼音到编码
 };
 
 

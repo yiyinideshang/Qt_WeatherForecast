@@ -59,7 +59,7 @@ static bool isExpired(const QString &updateTime)
     return !dt.isValid() || dt.secsTo(QDateTime::currentDateTime()) > 7200;
 }
 
-bool DataCache::load(const QString &cityCode, Today &today, Day day[6])
+bool DataCache::load(const QString &cityCode, Today &today, Day day[7])
 {
     if (!m_db.isOpen())
         return false;
@@ -95,7 +95,7 @@ bool DataCache::load(const QString &cityCode, Today &today, Day day[6])
         return false;
 
     int i = 0;
-    while (query.next() && i < 6) {
+    while (query.next() && i < 7) {
         day[i].date = query.value("date").toString();
         day[i].week = query.value("week").toString();
         day[i].type = query.value("type").toString();
@@ -111,10 +111,10 @@ bool DataCache::load(const QString &cityCode, Today &today, Day day[6])
     }
 
     qDebug() << "缓存命中:" << cityCode << today.city;
-    return i == 6;
+    return i == 7;
 }
 
-void DataCache::save(const QString &cityCode, const Today &today, const Day day[6])
+void DataCache::save(const QString &cityCode, const Today &today, const Day day[7])
 {
     if (!m_db.isOpen())
         return;
@@ -151,7 +151,7 @@ void DataCache::save(const QString &cityCode, const Today &today, const Day day[
     query.addBindValue(cityCode);
     query.exec();
 
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 7; ++i) {
         query.prepare(
             "INSERT OR REPLACE INTO cache_day "
             "(city_code, idx, date, week, type, high, low, fl, fx, aqi, "
