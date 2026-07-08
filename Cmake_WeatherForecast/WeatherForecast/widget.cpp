@@ -693,13 +693,13 @@ void Widget::on_pushButton_2_clicked()
     QString cityName = ui->lineEdit_2->text();
     QString cityCode = WeatherTool::getCityCode(cityName);
 
-    if (cityCode == m_currentCityCode)
+    if (!cityCode.isEmpty() && cityCode == m_currentCityCode)
         return;
 
     m_startupCacheLoaded = false;
-    m_apiClient->cancelRetry();
 
     if (!cityCode.isEmpty()) {
+        m_apiClient->cancelRetry();
         QSettings settings;
         settings.setValue("lastCityCode", cityCode);
 

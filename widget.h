@@ -83,10 +83,10 @@ private:
 
     QListWidget *m_cityDropdown;//最近访问城市下拉列表
 
-    QString m_currentCityCode;//当前显示的城市的编码（用于搜索去重）
+    QString m_currentCityCode = "";//当前显示的城市的编码（用于搜索去重）
     QString m_lastRequestedCityCode;//最近一次请求的城市编码（onWeatherDataReady 歧义回退）
     bool m_startupCacheLoaded = false;//标记启动时是否已展示缓存数据（控制错误弹窗文案）
     //当它为true时:失败提示为:"网络连接失败，当前显示缓存数据..."（温和提示）
-    //当它为false时:失败提示为:"请求数据失败，请检查城市编码或网络连接"（错误警告）
+    //当它为false时:失败提示为:"请求数据失败，请检查网络连接~~！"（错误警告）
 };
 #endif

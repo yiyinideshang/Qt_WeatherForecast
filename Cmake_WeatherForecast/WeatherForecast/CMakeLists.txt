@@ -23,6 +23,9 @@ set(PROJECT_SOURCES
     res.qrc
 )
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/debug")
+
+
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(WeatherForecast
         MANUAL_FINALIZATION

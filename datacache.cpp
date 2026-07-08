@@ -23,6 +23,7 @@ void DataCache::initDb()
     m_db = QSqlDatabase::addDatabase("QSQLITE", "weather_cache");
     m_db.setDatabaseName("weather_cache.db");
 
+    //打开数据库
     if (!m_db.open()) {
         qDebug() << "缓存数据库打开失败:" << m_db.lastError().text();
         return;
@@ -46,11 +47,6 @@ void DataCache::initDb()
         "sunrise TEXT DEFAULT '', sunset TEXT DEFAULT '', notice TEXT DEFAULT '',"
         "PRIMARY KEY (city_code, idx))"
     );
-    // 兼容旧表——添加缺失列，忽略已存在错误
-    query.exec("ALTER TABLE cache_today ADD COLUMN pm10 INTEGER DEFAULT 0");
-    query.exec("ALTER TABLE cache_day ADD COLUMN sunrise TEXT DEFAULT ''");
-    query.exec("ALTER TABLE cache_day ADD COLUMN sunset TEXT DEFAULT ''");
-    query.exec("ALTER TABLE cache_day ADD COLUMN notice TEXT DEFAULT ''");
 }
 
 //检查缓存是否过期的工具函数。
@@ -201,12 +197,14 @@ QList<QPair<QString,QString>> DataCache::getAllCachedCities()
 //清空 cache_today 和 cache_day 所有记录
 void DataCache::clearAll()
 {
+    // 检查数据库是否已打开（m_db 是 QSqlDatabase 对象）
     if (!m_db.isOpen())
-        return;
+        return;//未打开直接返回
 
-    QSqlQuery query(m_db);
-    query.exec("DELETE FROM cache_today");
-    query.exec("DELETE FROM cache_day");
+    QSqlQuery query(m_db);//创建一个绑定到当前数据库连接的查询对象。
+    //执行数据库删除操作
+    query.exec("DELETE FROM cache_today");// 删除当天天气表的所有数据
+    query.exec("DELETE FROM cache_day");// 删除多天预报表的所有数据
     qDebug() << "所有缓存已清除";
 }
 

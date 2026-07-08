@@ -102,39 +102,47 @@ Widget::Widget(QWidget *parent)
     //1. 如果点击的是普通城市,优先使用cityCode，之后显示在lineEdit_2上；降级则使用cityName搜索
     //2. 如果点击的是被贴了"__clear__"的标签的"清空缓存"列表项,则执行清空缓存操作
     connect(m_cityDropdown, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
-        if (!(item->flags() & Qt::ItemIsSelectable))
-            return;
+        //如果点击的是 过滤暂无缓存记录
+        if (!(item->flags() & Qt::ItemIsSelectable))//如果这个项没有 ItemIsSelectable 标记，就直接跳过，不处理点击。
+            return;//作用就是过滤掉"暂无缓存记录"那行——它只有 ItemIsEnabled，没有 ItemIsSelectable，点了直接 return，啥也不干。
 
+        //如果点击的是 清空缓存
         if (item->data(Qt::UserRole).toString() == "__clear__") {
             m_cache->clearAll();
             QSettings().remove("lastCityCode");
-            ui->lineEdit_2->clear();
-            m_cityDropdown->hide();
+            ui->lineEdit_2->clear();//输入框显示的文本也清除掉
+            m_cityDropdown->hide();//隐藏下拉框
             return;
         }
 
+        //如果点击的是 某个城市
         m_cityDropdown->hide();
 
         // 优先使用 item 中存储的 cityCode（绕过 getCityCode 歧义判断）
         QString code = item->data(Qt::UserRole + 1).toString();
         if (!code.isEmpty()) {
-            if (code == m_currentCityCode) return;
+            if (code == m_currentCityCode) return;//如果点击的还是当前城市,不做任何处理,直接返回
 
             //bool m_startupCacheLoaded = false;//标记启动时是否已展示缓存数据（控制错误弹窗文案）
             m_startupCacheLoaded = false;
             m_apiClient->cancelRetry();
 
-            if (m_cache->load(code, mToday, mDay)) {//缓存命中
-                m_lastRequestedCityCode = code;
+            if (m_cache->load(code, mToday, mDay)) {//缓存命中,返回true
+                m_lastRequestedCityCode = code;     //更新最近一次请求的城市的编码
+                // 如果点击的是普通城市,则显示在lineEdit_2上
+                ui->lineEdit_2->setText(item->text());
                 onWeatherDataReady(mToday, mDay);
                 return;
             }
             //缓存未命中，说明这个城市从来没查过，或者缓存过期被清掉了。
-            m_lastRequestedCityCode = code;
+            m_lastRequestedCityCode = code;//更新最近一次请求的城市的编码
+            // 如果点击的是普通城市,则显示在lineEdit_2上
+            ui->lineEdit_2->setText(item->text());
             m_apiClient->getWeatherInfo(code);//发起异步 HTTP 网络请求，成功后最终调用onWeatherDataReady
             return;
         }
 
+        //技术兜底
         // 如果点击的是普通城市,则显示在lineEdit_2上
         ui->lineEdit_2->setText(item->text());
         // 降级：通过文字搜索
@@ -182,7 +190,7 @@ Widget::Widget(QWidget *parent)
             QMessageBox msgBox;
             msgBox.setIcon(QMessageBox::Warning);
             msgBox.setWindowTitle("天气");
-            // 当请求数据失败时(网络断开):请求数据失败，请检查城市编码或网络连接~~！
+            // 当请求数据失败时(网络断开):请求数据失败，请检查网络连接~~！
             // 当输入的城市找不到城市编码时:请检查输入的城市是否正确!(省级以下的城市)
             msgBox.setText(msg);
             msgBox.setStyleSheet("color: black;");
@@ -195,7 +203,7 @@ Widget::Widget(QWidget *parent)
     m_cache = new DataCache(this);
 
 // 步骤 9：立即显示 UI + 后台网络请求
-    //存的是一个字符串（城市编码），保存在注册表 / 配置文件里。作用：下次启动时直接读这个编码，不走 IP 定位。
+    //存的是一个字符串（城市编码），保存在注册表 / 配置文件里，用来记录上次访问的城市。作用：下次启动时直接读这个编码，不走 IP 定位。
     QSettings settings;//记"上次用哪个城市"
     QString lastCityCode = settings.value("lastCityCode").toString();
 
@@ -610,7 +618,7 @@ void Widget::showDefaultUI()
     }
 }
 
-// 目的是：在下拉框 m_cityDropdown 显示时，
+// 目的是：在下拉框 m_cityDropdown 的显示与隐藏，
 // 检测用户是否点击了下拉框和触发输入框之外的区域，若是则自动隐藏下拉框（在 eventFilter 中实现）。
 // 同时它也负责在点击输入框时切换下拉的显隐。
 bool Widget::eventFilter(QObject *obj, QEvent *event)
@@ -656,14 +664,18 @@ void Widget::showCityDropdown()
     //如果下拉列表框是空的,则只有一个"暂无缓存记录"列表项
     if (cities.isEmpty()) {
         QListWidgetItem *emptyItem = new QListWidgetItem("暂无缓存记录");
-        emptyItem->setFlags(Qt::ItemIsEnabled);//项处于启用状态
+        emptyItem->setFlags(Qt::ItemIsEnabled);//只保留可显示
         emptyItem->setForeground(QColor(160, 160, 160));//灰色
         m_cityDropdown->addItem(emptyItem);//添加列表项
     }
     else {
+        // DisplayRole="北京", UserRole+1="101010100"
+        // DisplayRole="上海", UserRole+1="101020100"
+        // DisplayRole="清除缓存记录", UserRole="__clear__"
         for (const auto &pair : qAsConst(cities)) {
-            auto *item = new QListWidgetItem(pair.second);
-            item->setData(Qt::UserRole + 1, pair.first);
+            //flags为可选中 + 可显示
+            auto *item = new QListWidgetItem(pair.second);// DisplayRole = 城市名
+            item->setData(Qt::UserRole + 1, pair.first);// UserRole+1 = cityCode
             m_cityDropdown->addItem(item);
         }
 
@@ -697,16 +709,21 @@ void Widget::on_pushButton_2_clicked()
     QString cityName = ui->lineEdit_2->text();
     QString cityCode = WeatherTool::getCityCode(cityName);//通过WeatherTool类的getCityCode得到城市编码
 
-    // 如果搜索的城市与当前UI中的城市相同,保持不变,搜索按钮直接返回
-    if (cityCode == m_currentCityCode)
+    //加上!cityCode.isEmpty()，强制界面存在城市且输入的城市就是当前城市时，直接返回
+    //当cityCode.isEmpty()表示当前无缓存
+    //当无网络时，界面城市信息为空，当前城市也是空；如果不加上这个条件，当输入不存在的城市后，啥错误信息没返回，
+    // 应该返回：请检查输入的城市是否正确!(省级以下的城市)
+
+    // 只有当 当前UI中有城市，并且搜索的城市与当前UI中的城市相同,保持不变,搜索按钮直接返回
+    if (!cityCode.isEmpty() && cityCode == m_currentCityCode)
         return;
 
     //搜索时让显示缓存标识为false,确保当搜索失败后的提示为:请求数据失败，请检查城市编码或网络连
     m_startupCacheLoaded = false;
-    //搜索时,停掉之前的重试定时器,重置计数，新请求重新从 0 开始
-    m_apiClient->cancelRetry();
 
     if (!cityCode.isEmpty()) {
+        //搜索时,停掉之前的重试定时器,重置计数，新请求重新从 0 开始
+        m_apiClient->cancelRetry();
         QSettings settings;
         settings.setValue("lastCityCode", cityCode);
 

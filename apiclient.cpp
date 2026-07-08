@@ -37,8 +37,6 @@ void ApiClient::cancelRetry()
 //根据城市名/编码发起 GET 请求，先 cancelRetry()
 void ApiClient::getWeatherInfo(const QString &cityName)
 {
-    cancelRetry();
-
     QString cityCode = cityName;
 
     if (cityName.startsWith("101") && cityName.length() == 9) {
@@ -48,10 +46,11 @@ void ApiClient::getWeatherInfo(const QString &cityName)
         cityCode = WeatherTool::getCityCode(cityName);
         if(cityCode.isEmpty()){
             emit errorOccurred("请检查输入的城市是否正确!(省级以下的城市)");
-            return;
+            return;     // ← 当输入的城市有误时（本地json文件没有该城市），这里直接 return，根本不会走到 onReplied
         }
     }
 
+    cancelRetry();
     m_pendingCityCode = cityCode;
 
     QUrl url("http://t.weather.itboy.net/api/weather/city/"+cityCode);
@@ -92,7 +91,7 @@ void ApiClient::getLocationByIP()
     ipManager->get(QNetworkRequest(QUrl("https://ipinfo.io/json")));
 }
 
-//HTTP 层：（是否风访问那个天气API网站）槽函数用于处理服务器返回的响应数据
+//HTTP 层：（是否能访问那个天气API网站）槽函数用于处理服务器返回的响应数据
 void ApiClient::onReplied(QNetworkReply *reply)
 {
     qDebug()<<"onReplied success";//表示槽函数 onReplied 被成功触发。(网络已到达)
@@ -113,11 +112,14 @@ void ApiClient::onReplied(QNetworkReply *reply)
     {
         qDebug()<<reply->errorString().toLatin1().data();
         if (m_retryCount == 0) {// 第一次失败才发射
-            emit errorOccurred("请求数据失败，请检查城市编码或网络连接~~！");
+            emit errorOccurred("请求数据失败，请检查网络连接~~！");
         }
         if (++m_retryCount <= MAX_RETRY_COUNT) {
             qDebug() << "后台重试" << m_retryCount << "/" << MAX_RETRY_COUNT;
             m_retryTimer->start(RETRY_INTERVAL_MS);// 后续静默重试，不再弹窗
+        } else {
+            qDebug() << "重试次数已耗尽";
+            emit errorOccurred("重连网络失败！");
         }
     }
     else//没有出错

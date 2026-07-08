@@ -364,13 +364,13 @@ public:
 
         widget_2 = new QWidget(Widget);
         widget_2->setObjectName("widget_2");
-        widget_2->setGeometry(QRect(10, 80, 411, 121));
+        widget_2->setGeometry(QRect(10, 80, 491, 121));
         lblTemp = new QLabel(widget_2);
         lblTemp->setObjectName("lblTemp");
         lblTemp->setGeometry(QRect(120, 0, 141, 91));
         lblCity = new QLabel(widget_2);
         lblCity->setObjectName("lblCity");
-        lblCity->setGeometry(QRect(250, 0, 161, 61));
+        lblCity->setGeometry(QRect(261, 0, 230, 61));
         lblTypeIcon = new QLabel(widget_2);
         lblTypeIcon->setObjectName("lblTypeIcon");
         lblTypeIcon->setGeometry(QRect(0, 0, 111, 111));

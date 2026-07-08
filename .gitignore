@@ -13,3 +13,6 @@ Makefile.Release
 weather_cache.db 
 docs/控件方法.md
 docs/发行版本.md
+docs/错误信息.md
+docs/DataCache.md
+docs/Qsettings.md

@@ -37,8 +37,6 @@ void ApiClient::cancelRetry()
 //根据城市名/编码发起 GET 请求，先 cancelRetry()
 void ApiClient::getWeatherInfo(const QString &cityName)
 {
-    cancelRetry();
-
     QString cityCode = cityName;
 
     if (cityName.startsWith("101") && cityName.length() == 9) {
@@ -52,6 +50,7 @@ void ApiClient::getWeatherInfo(const QString &cityName)
         }
     }
 
+    cancelRetry();
     m_pendingCityCode = cityCode;
 
     QUrl url("http://t.weather.itboy.net/api/weather/city/"+cityCode);
@@ -118,6 +117,9 @@ void ApiClient::onReplied(QNetworkReply *reply)
         if (++m_retryCount <= MAX_RETRY_COUNT) {
             qDebug() << "后台重试" << m_retryCount << "/" << MAX_RETRY_COUNT;
             m_retryTimer->start(RETRY_INTERVAL_MS);// 后续静默重试，不再弹窗
+        } else {
+            qDebug() << "重试次数已耗尽";
+            emit errorOccurred("重连网络失败！");
         }
     }
     else//没有出错
