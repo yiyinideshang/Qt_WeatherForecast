@@ -21,6 +21,7 @@ public:
     void cancelRetry();//停止重试定时器，重置计数（getWeatherInfo 开头调用）
 signals:
     void weatherDataReady(const Today &today, const Day day[7]);//数据就绪后通知 Widget
+    //失败信号
     void errorOccurred(const QString &message);//第一次失败时立即发射（弹窗提示用户），后续静默重试
 private slots:
     void onReplied(QNetworkReply *reply);//处理 HTTP 响应，失败时启动定时器重试，成功则调用 parseJson

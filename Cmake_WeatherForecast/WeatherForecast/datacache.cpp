@@ -7,15 +7,17 @@
 DataCache::DataCache(QObject *parent)
     : QObject(parent)
 {
-    initDb();
+    initDb();//构造函数，调用 initDb 建表
 }
 
 DataCache::~DataCache()
 {
+    //析构时关闭数据库
     if (m_db.isOpen())
         m_db.close();
 }
 
+//创建 cache_today 和 cache_day 两张表
 void DataCache::initDb()
 {
     m_db = QSqlDatabase::addDatabase("QSQLITE", "weather_cache");
@@ -51,14 +53,17 @@ void DataCache::initDb()
     query.exec("ALTER TABLE cache_day ADD COLUMN notice TEXT DEFAULT ''");
 }
 
+//检查缓存是否过期的工具函数。
 static bool isExpired(const QString &updateTime)
 {
-    QDateTime dt = QDateTime::fromString(updateTime, Qt::ISODate);
+    QDateTime dt = QDateTime::fromString(updateTime, Qt::ISODate);//先用 ISO 格式解析时间字符串
     if (!dt.isValid())
         dt = QDateTime::fromString(updateTime, "yyyy-MM-dd HH:mm:ss");
-    return !dt.isValid() || dt.secsTo(QDateTime::currentDateTime()) > 7200;
+    return !dt.isValid() || dt.secsTo(QDateTime::currentDateTime()) > 7200;//解析失败就换另一种格式重试
+    // 返回 true（已过期）的条件：时间格式无法解析，或者当前时间减去缓存时间已经超过 7200 秒（2 小时）
 }
 
+//读缓存，检查过期，返回是否命中
 bool DataCache::load(const QString &cityCode, Today &today, Day day[7])
 {
     if (!m_db.isOpen())
@@ -72,7 +77,7 @@ bool DataCache::load(const QString &cityCode, Today &today, Day day[7])
         return false;
 
     if (isExpired(query.value("update_time").toString()))
-        return false;
+        return false; // 缓存过期，视为未命中
 
     today.date = query.value("date").toString();
     today.city = query.value("city").toString();
@@ -114,15 +119,14 @@ bool DataCache::load(const QString &cityCode, Today &today, Day day[7])
     return i == 7;
 }
 
+//写缓存（INSERT OR REPLACE），完成后检查并淘汰
 void DataCache::save(const QString &cityCode, const Today &today, const Day day[7])
 {
     if (!m_db.isOpen())
         return;
 
     QSqlQuery query(m_db);
-    QString now = today.updateTime.isEmpty()
-        ? QDateTime::currentDateTime().toString(Qt::ISODate)
-        : today.updateTime;
+    QString now = QDateTime::currentDateTime().toString(Qt::ISODate);
 
     query.prepare(
         "INSERT OR REPLACE INTO cache_today "
@@ -176,9 +180,11 @@ void DataCache::save(const QString &cityCode, const Today &today, const Day day[
 
     evictIfNeeded();
 
-    qDebug() << "缓存已保存:" << cityCode << today.city;
+    qDebug() << "缓存已保存:" << cityCode << today.city << "\n";
+
 }
 
+//返回所有缓存城市的 (cityCode, cityName) 列表，按 update_time 降序
 QList<QPair<QString,QString>> DataCache::getAllCachedCities()
 {
     QList<QPair<QString,QString>> result;
@@ -192,6 +198,7 @@ QList<QPair<QString,QString>> DataCache::getAllCachedCities()
     return result;
 }
 
+//清空 cache_today 和 cache_day 所有记录
 void DataCache::clearAll()
 {
     if (!m_db.isOpen())
@@ -203,6 +210,7 @@ void DataCache::clearAll()
     qDebug() << "所有缓存已清除";
 }
 
+//缓存数量 > MAX_ENTRIES 时淘汰最早一条记录（LRU）
 void DataCache::evictIfNeeded()
 {
     QSqlQuery query(m_db);

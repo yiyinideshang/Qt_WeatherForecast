@@ -1932,12 +1932,6 @@
         "cityCode": "101080705"
     },
     {
-        "cityName": "河南",
-        "province": "内蒙古",
-        "cityPinyin": "henan",
-        "cityCode": "101080706"
-    },
-    {
         "cityName": "伊克乌素",
         "province": "内蒙古",
         "cityPinyin": "yikewusu",
@@ -15316,5 +15310,83 @@
         "province": "海南",
         "cityPinyin": "wuzhishan",
         "cityCode": "101310222"
+    },
+    {
+        "cityName": "台北",
+        "province": "台湾省",
+        "cityPinyin": "taibei",
+        "cityCode": "101340101"
+    },
+    {
+        "cityName": "高雄",
+        "province": "台湾省",
+        "cityPinyin": "gaoxiong",
+        "cityCode": "101340201"
+    },
+    {
+        "cityName": "台南",
+        "province": "台湾省",
+        "cityPinyin": "tainan",
+        "cityCode": "101340401"
+    },
+    {
+        "cityName": "嘉义",
+        "province": "台湾省",
+        "cityPinyin": "jiayi",
+        "cityCode": "101340501"
+    },
+    {
+        "cityName": "台中",
+        "province": "台湾省",
+        "cityPinyin": "taizhong",
+        "cityCode": "101340601"
+    },
+    {
+        "cityName": "新竹",
+        "province": "台湾省",
+        "cityPinyin": "xinzhu",
+        "cityCode": "101340701"
+    },
+    {
+        "cityName": "宜兰",
+        "province": "台湾省",
+        "cityPinyin": "yilan",
+        "cityCode": "101340801"
+    },
+    {
+        "cityName": "台东",
+        "province": "台湾省",
+        "cityPinyin": "taidong",
+        "cityCode": "101340901"
+    },
+    {
+        "cityName": "屏东",
+        "province": "台湾省",
+        "cityPinyin": "pingdong",
+        "cityCode": "101341001"
+    },
+    {
+        "cityName": "桃园",
+        "province": "台湾省",
+        "cityPinyin": "taoyuan",
+        "cityCode": "101341101"
+    },
+    {
+        "cityName": "苗栗",
+        "province": "台湾省",
+        "cityPinyin": "miaoli",
+        "cityCode": "101341201"
+    },
+    {
+        "cityName": "彰化",
+        "province": "台湾省",
+        "cityPinyin": "zhanghua",
+        "cityCode": "101341301"
+    },
+    {
+        "cityName": "澳门",
+        "province": "澳门特别行政区",
+        "cityPinyin": "aomen",
+        "cityCode": "101330101"
     }
 ]

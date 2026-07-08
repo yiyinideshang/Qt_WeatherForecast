@@ -18,7 +18,9 @@ public:
     void save(const QString &cityCode, const Today &today, const Day day[7]);//写缓存（INSERT OR REPLACE），完成后检查并淘汰
     //返回所有缓存城市的 (cityCode, cityName) 列表，按 update_time 降序
     QList<QPair<QString,QString>> getAllCachedCities();
-    void clearAll();//清空 cache_today 和 cache_day 所有记录
+
+    //清空 cache_today 和 cache_day 所有记录
+    void clearAll();
 
 private:
     void initDb();//创建 cache_today 和 cache_day 两张表

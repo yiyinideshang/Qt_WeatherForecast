@@ -12,6 +12,7 @@ public:
     void setData(const int temps[7]);//设置温度数据，触发重绘
 
 protected:
+    //重写父类的paintEvent 重绘事件
     void paintEvent(QPaintEvent *event) override;//核心绘制：计算坐标、画圆点、画折线
 
 private:

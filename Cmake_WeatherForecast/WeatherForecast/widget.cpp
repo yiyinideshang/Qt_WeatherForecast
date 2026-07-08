@@ -36,29 +36,38 @@ Widget::Widget(QWidget *parent)
     setWindowIcon(QIcon("://res/WeatherForecast.png")); //设置任务栏和窗口图标
 
 // 步骤 3：构建右键菜单（最小化到托盘 + 退出）
+    //退出菜单项
     mExitMenu = new QMenu(this);
     mExitMenu->setStyleSheet("QMenu { color: black; } QMenu::item { color: black; }");
 
+    //最小化到托盘菜单项
     m_minimizeAct = new QAction(QIcon("://res/MiniWindow.png"), "最小化到托盘");
     mExitMenu->addAction(m_minimizeAct);
 
+    //添加分割线
     mExitMenu->addSeparator();
 
+    //退出项
     mExitAct = new QAction();
     mExitAct->setText("退出");
     mExitAct->setIcon(QIcon(":/res/close.png"));
-
     mExitMenu->addAction(mExitAct);
 
     connect(m_minimizeAct, &QAction::triggered, this, [this]() {
+        //点击最小化到托盘项后，使主窗口隐藏，程序以后台方式运行，并使用户可以在系统托盘看到图标。
         hide();
-        m_trayIcon->show();
+        m_trayIcon->show();//该程序的系统托盘图标显示在系统托盘上
     });
     connect(mExitAct,&QAction::triggered,this,[=](){
+    // qApp 是 Qt 框架预定义的一个全局宏，本质上等价于 QCoreApplication::instance()，
+    // 返回指向当前应用程序唯一 QApplication 实例的指针。
+    // exit(0) 会退出 Qt 的事件循环，导致应用程序完全终止。
+    // 参数 0 是返回给操作系统的退出码，通常 0 表示正常退出。
+    // 执行这一句后，窗口关闭、托盘图标消失，整个进程结束。
         qApp->exit(0);
     });
 
-// 步骤 4：组织控件数组:将 UI 中的 6 组标签控件放入 QList，便于在 updataUI() 中用循环批量更新。
+// 步骤 4：组织控件数组:将 UI 中的 6 组标签控件放入 QList，便于在 updataUI():将数据更新到 UI 控件中 用循环批量更新。
     //星期和日期
     mWeekList<<ui->lblWeek0<<ui->lblWeek1<<ui->lblWeek2<<ui->lblWeek3<<ui->lblWeek4<<ui->lblWeek5<<ui->lblWeek6;
     mDateList<<ui->lblDate0<<ui->lblDate1<<ui->lblDate2<<ui->lblDate3<<ui->lblDate4<<ui->lblDate5<<ui->lblDate6;
@@ -71,7 +80,8 @@ Widget::Widget(QWidget *parent)
     mFxList<<ui->lblFX0<<ui->lblFX1<<ui->lblFX2<<ui->lblFX3<<ui->lblFX4<<ui->lblFX5<<ui->lblFX6;
     mFlList<<ui->lblFl0<<ui->lblFl1<<ui->lblFl2<<ui->lblFl3<<ui->lblFl4<<ui->lblFl5<<ui->lblFl6;
 
-// 步骤 5：构建天气类型到图标的映射表
+
+// 步骤 5：构建天气类型到图标的映射表   加载 iconfont 图标字体
     loadIconFont();
 
 // 步骤 6：创建搜索框下拉列表（最近访问城市）
@@ -92,53 +102,85 @@ Widget::Widget(QWidget *parent)
     //1. 如果点击的是普通城市,则显示在lineEdit_2上,并搜索该城市的信息,
     //2. 如果点击的是被贴了"__clear__"的标签的"清空缓存"列表项,则执行清空缓存操作
     connect(m_cityDropdown, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
-        // 先检查项是否可选择（如果是分隔符等不可选项，直接返回）
         if (!(item->flags() & Qt::ItemIsSelectable))
             return;
 
-        // 点击时读取标签：如果点击的该项在指定为“UserRole”下的数据是“__clear__”
-        // 则通过 UserRole 数据区分“清空缓存”特殊项
         if (item->data(Qt::UserRole).toString() == "__clear__") {
-            m_cache->clearAll();//清除缓存信息
-            QSettings().remove("lastCityCode");//删除持久化存储中的“上次城市代码”记录。
-            ui->lineEdit_2->clear();//清除lineEdit_2的文本信息
-            m_cityDropdown->hide();//清空缓存后,隐藏下拉框
+            m_cache->clearAll();
+            QSettings().remove("lastCityCode");
+            ui->lineEdit_2->clear();
+            m_cityDropdown->hide();
             return;
         }
 
-        //否则,点击的是一个普通的城市项
-        //将点击的列表项输入到 lineEdit_2 上,并调用on_pushButton_2_clicked槽函数,完成搜索功能
-        m_cityDropdown->hide();//用户选择了某个城市后,隐藏下拉框
+        m_cityDropdown->hide();
+
+        // 优先使用 item 中存储的 cityCode（绕过 getCityCode 歧义判断）
+        QString code = item->data(Qt::UserRole + 1).toString();
+        if (!code.isEmpty()) {
+            if (code == m_currentCityCode) return;
+
+            m_startupCacheLoaded = false;
+            m_apiClient->cancelRetry();
+
+            if (m_cache->load(code, mToday, mDay)) {
+                m_lastRequestedCityCode = code;
+                onWeatherDataReady(mToday, mDay);
+                return;
+            }
+            m_lastRequestedCityCode = code;
+            m_apiClient->getWeatherInfo(code);
+            return;
+        }
+
+        // 降级：通过文字搜索
         ui->lineEdit_2->setText(item->text());
         on_pushButton_2_clicked();
     });
+
+    // 向整个应用程序安装事件过滤器，让 this（当前 Widget 对象）成为全局事件监视者，
+    // 之后整个应用程序的所有鼠标/键盘等事件都会先经过 Widget::eventFilter() 方法处理，
+    // 之后才传给目标控件。
     qApp->installEventFilter(this);
 
+    //禁止输入框的右键菜单（复制/粘贴等）。让输入框专门用于城市搜索，不显示标准右键菜单，保持界面简洁
     ui->lineEdit_2->setContextMenuPolicy(Qt::NoContextMenu);
+
+    //当用户在输入框内按下回车键时，自动调用 on_pushButton_2_clicked() 执行搜索
+    //这样用户输入城市名后无需点击按钮，直接回车即可查询天气。
     connect(ui->lineEdit_2, &QLineEdit::returnPressed, this, &Widget::on_pushButton_2_clicked);
 
 // 步骤 7：初始化网络客户端并连接信号
-    //网络请求
-    //关联信号和槽,当getWeatherInfo发送http请求完毕后,服务器返回数据,此时:
-    //mNetAccessManger就会发送一个finished信号,并将QNetworkReply的指针携带服务器的响应,作为参数传递出去,
-    //进而调用onReplied槽函数作出 处理响应动作
+    //先进行 ApiClient 对象的初始化,这个类内部会创建QNetworkAccessManager网络管理器;
+    //当 ApiClient::getWeatherInfo 发送http/Get请求 完毕触发QNetworkAccessManager::finished信号
+    // 这个信号与onReplied 槽函数绑定,这个槽函数用于 处理服务器返回的数据,看看相应是否成功
+    // 成功后调用 ApiClient::parseJson :这个函数用于 解析 JSON
+    // 成功后:emit weatherDataReady 信号
+    // 失败后:emit errorOccurred("请求数据失败，请检查城市编码或网络连接~~！")
+
     m_apiClient = new ApiClient(this);
+    //当ApiClient::weatherDataReady信号就绪时,槽函数Widget::onWeatherDataReady进行处理
     connect(m_apiClient, &ApiClient::weatherDataReady,
             this, &Widget::onWeatherDataReady);
 
+    //失败信号errorOccurred携带的参数:失败信息
     connect(m_apiClient, &ApiClient::errorOccurred, this, [this](const QString &msg) {
+        //bool m_startupCacheLoaded = false;//标记启动时是否已展示缓存数据（控制错误弹窗文案）
+        //如果有缓存信息(步骤9),m_startupCacheLoaded设置为true,表示显示缓存
         if (m_startupCacheLoaded) {
-            m_startupCacheLoaded = false;
+            m_startupCacheLoaded = false;   //重置标识
             QMessageBox msgBox;
             msgBox.setIcon(QMessageBox::Information);
             msgBox.setWindowTitle("天气");
-            msgBox.setText("网络连接失败，当前显示缓存数据，正在后台重连...");
+            msgBox.setText("网络连接失败，当前显示缓存数据，正在后台重连...");//有缓存时,信息框弹出这个
             msgBox.setStyleSheet("color: black;");
             msgBox.exec();
         } else {
             QMessageBox msgBox;
             msgBox.setIcon(QMessageBox::Warning);
             msgBox.setWindowTitle("天气");
+            // 当请求数据失败时(网络断开):请求数据失败，请检查城市编码或网络连接~~！
+            // 当输入的城市找不到城市编码时:请检查输入的城市是否正确!(省级以下的城市)
             msgBox.setText(msg);
             msgBox.setStyleSheet("color: black;");
             msgBox.exec();
@@ -146,26 +188,40 @@ Widget::Widget(QWidget *parent)
     });
 
 // 步骤 8：初始化本地缓存层
+    // DataCache *m_cache;//SQLite 本地缓存
     m_cache = new DataCache(this);
 
 // 步骤 9：立即显示 UI + 后台网络请求
-    QSettings settings;
+    //存的是一个字符串（城市编码），保存在注册表 / 配置文件里。作用：下次启动时直接读这个编码，不走 IP 定位。
+    QSettings settings;//记"上次用哪个城市"
     QString lastCityCode = settings.value("lastCityCode").toString();
 
+    //1. 先试 QSettings 记的那个城市。 如果 lastCityCode 非空，就去数据库里读这个城市的缓存——读到的结果给到mToday, mDay,并返回 true，进入 if。
+    //2. 第 1 条失败时降级。去数据库里找最近缓存过的城市（不管 lastCityCode 是什么），读到了就 true。
     if ((!lastCityCode.isEmpty() && m_cache->load(lastCityCode, mToday, mDay)) ||
         loadRecentCache(lastCityCode)) {
-        updataUI();
+        updataUI();//将数据更新到 UI 控件
         m_currentCityCode = lastCityCode;//记录当前加载的城市编码，用于后续搜索时去重。
-        m_startupCacheLoaded = true;//标志控制首次失败时的弹窗文案
+        m_startupCacheLoaded = true;//标志控制首次失败时的弹窗文案;// 它是一个标记：已经用缓存显示了
     } else
-        showDefaultUI();
+        showDefaultUI();// 完全没缓存 → 显示占位符
+
+    m_lastRequestedCityCode = lastCityCode;
 
 // 将网络请求推迟到事件循环启动后执行，避免 `m_highChart`/`m_lowChart` 尚未初始化就被访问。
+// 0 是延迟 0 毫秒，但 Qt 不会真的等 0ms——它把这个任务扔到事件队列的末尾，等当前函数（构造函数）执行完毕、控件都显示出来后，再执行里面的代码。
     QTimer::singleShot(0, this, [this, lastCityCode]() {
-        if (!lastCityCode.isEmpty())
+        if (!lastCityCode.isEmpty())// 有上次城市 → 直接用那个城市发起get请求
+
+            //当 ApiClient::getWeatherInfo 发送http/Get请求 完毕触发QNetworkAccessManager::finished信号
+            // 这个信号与onReplied 槽函数绑定,这个槽函数用于 处理服务器返回的数据,看看相应是否成功，
+            // 成功后调用 ApiClient::parseJson :这个函数用于 解析 JSON 并发射 weatherDataReady 信号
+            //（步骤7）当ApiClient::weatherDataReady信号就绪时,槽函数Widget::onWeatherDataReady进行处理
             m_apiClient->getWeatherInfo(lastCityCode);
         else
-            m_apiClient->getLocationByIP();
+            // 当ApiClient::getLocationByIP 发送http/Get请求 完毕触发QNetworkAccessManager::finished信号
+            // 先在getLocationByIP函数内部进行处理，之后再交给getWeatherInfo 再次发送http/Get请求
+            m_apiClient->getLocationByIP();// 没有上次城市 → 走 IP 定位来发起get请求
     });
 
 //步骤 10：创建温度曲线控件
@@ -204,20 +260,27 @@ Widget::Widget(QWidget *parent)
     QAction *trayExitAct = trayMenu->addAction("退出");
     m_trayIcon->setContextMenu(trayMenu);
 
+    //① "显示"菜单项
     connect(showAct, &QAction::triggered, this, [this]() {
-        showNormal();//使用 showNormal() 而非 show()，确保任务栏最小化的窗口也能正确恢复。
-        //- 强制窗口置顶，避免藏在其他窗口后面。
-        raise();
-        activateWindow();
+        // 使用 showNormal() 而非 show()，确保任务栏最小化的窗口也能正确恢复。
+        showNormal(); // 从最小化/隐藏状态恢复窗口
+
+        //强制窗口置顶，避免藏在其他窗口后面。
+        raise();// 把窗口提到最前面
+        activateWindow();// 给窗口焦点（激活）
     });
 
+    //② "退出"菜单项
     connect(trayExitAct, &QAction::triggered, this, [this]() {
-        m_trayIcon->hide();
-        qApp->exit(0);
+        m_trayIcon->hide();// 先隐藏托盘图标
+        qApp->exit(0);// 退出应用
     });
 
+    // ③ 托盘图标点击
     connect(m_trayIcon, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
+        //鼠标单击或双击托盘图标时恢复窗口。ActivationReason 参数区分点击方式（单击 / 双击 / 中键等），只对单击和双击响应，忽略其他操作。
         if (reason == QSystemTrayIcon::DoubleClick || reason == QSystemTrayIcon::Trigger) {
+            //与上方显示菜单项一致
             showNormal();
             raise();
             activateWindow();
@@ -230,34 +293,48 @@ Widget::~Widget()
     delete ui;
 }
 
+
+//加载 iconfont.ttf + 解析 iconfont.json，构建 mIconCodeMap
 void Widget::loadIconFont()
 {
+    // 1.加载 .ttf 字体文件
     int fontId = QFontDatabase::addApplicationFont(":/res/weatherforecast_icon/iconfont.ttf");
     if (fontId >= 0) {
         QStringList families = QFontDatabase::applicationFontFamilies(fontId);
         if (!families.isEmpty())
+            //QFont m_iconFont;
             m_iconFont = QFont(families.first(), 40);
     }
 
+    // 2. 打开并检查JSON文件
     QFile f(":/res/weatherforecast_icon/iconfont.json");
-    if (!f.open(QIODevice::ReadOnly))
-        return;
-    QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
-    f.close();
-    if (!doc.isObject())
-        return;
+    if (!f.open(QIODevice::ReadOnly))//以只读模式尝试打开这个文件。
+        return;//打开失败立即退出
+    QJsonDocument doc = QJsonDocument::fromJson(f.readAll());//读取并解析成JSON数据
+    f.close();//关闭JSON文件
+    if (!doc.isObject())//根据iconfont.json文件可知,它的最外层是一个{}JSON对象,如果不是可能是因为:文件是空的、被篡改了
+        return;//返回JSON对象失败立即返回
+
+    // 3. 解析 .json 文件，建立映射表
     QJsonArray glyphs = doc.object().value("glyphs").toArray();
     for (const QJsonValue &v : glyphs) {
         QJsonObject g = v.toObject();
-        QString name = g.value("name").toString();
-        QString unicodeHex = g.value("unicode").toString();
-        bool ok;
-        uint code = unicodeHex.toUInt(&ok, 16);
-        if (ok && !name.isEmpty())
-            mIconCodeMap.insert(name, QChar(code));
+        QString name = g.value("name").toString();      // 比如取到 "dayu"
+        QString unicodeHex = g.value("unicode").toString(); // 比如取到 "e695"
+        //注意，这里的 unicode 存的是十六进制字符串（不带 0x 前缀），比如 "e695"，而不是真正的数字。
+
+        bool ok;//ok 是一个布尔引用，用来告诉你转换是否成功
+        uint code = unicodeHex.toUInt(&ok, 16);//把字符串 "e695" 当成 16 进制数，转换成无符号整数 0xE695
+
+        // QMap<QString, QChar> mIconCodeMap;
+        if (ok && !name.isEmpty())//只插入合法数据：只有当转换成功（ok == true）并且名字不为空时，才插入到 QMap 中。
+            mIconCodeMap.insert(name, QChar(code));//把整数 0xE695 强制转成 Qt 的字符类型 QChar
+        // 此时的 mIconCodeMap长这样：
+        // Key("dayu")    -> Value(QChar(0xE695))
+        // Key("duoyun")  -> Value(QChar(0xE696))
     }
 
-    // API 返回别名
+    // API 返回别名，人工处理
     struct { const char *api; const char *iconfont; } aliases[] = {
         {"狂风", "狂爆风"},
         {"强风/劲风", "强风劲风"},
@@ -271,6 +348,8 @@ void Widget::loadIconFont()
     }
 }
 
+//QPainter 将天气名称渲染为 QPixmap（iconfont），结果缓存到 m_iconCache
+//QMap<QString, QPixmap> m_iconCache;//QPixmap 图标缓存（iconfont 渲染结果），避免重复 QPainter 绘制
 QPixmap Widget::renderWeatherIcon(const QString &weather)
 {
     auto it = m_iconCache.constFind(weather);
@@ -328,6 +407,7 @@ void Widget::mouseMoveEvent(QMouseEvent *event)
     this->move(event->globalPosition().toPoint() - mOffset);
 }
 
+//将数据更新到 UI 控件
 void Widget::updataUI()
 {
     //1. 更新日期和城市
@@ -337,10 +417,23 @@ void Widget::updataUI()
         QString("<p><span style='font-size:16pt; font-weight:700;'>%1 %2</span></p>")
             .arg(today.toString("yyyy/MM/dd"), locale.dayName(today.dayOfWeek()))
         );
-    ui->lblCity->setText(
-        QString("<p align='center'><span style='font-size:16pt;'>%1</span></p>")
-            .arg(mToday.city)
-        );
+    {
+        int pt = 16;
+        QFont f = ui->lblCity->font();
+        f.setPointSize(pt);
+        QFontMetrics fm(f);
+        int tw = fm.horizontalAdvance(mToday.city);
+        int mw = ui->lblCity->width() - 12;
+        while (tw > mw && pt > 8) {
+            f.setPointSize(--pt);
+            fm = QFontMetrics(f);
+            tw = fm.horizontalAdvance(mToday.city);
+        }
+        ui->lblCity->setText(
+            QString("<p align='center'><span style='font-size:%1pt;'>%2</span></p>")
+                .arg(pt).arg(mToday.city)
+            );
+    }
 
     //2. 更新今天
     {
@@ -454,6 +547,7 @@ void Widget::updataUI()
     }
 }
 
+//设置占位符文本（不依赖数据模型默认值）
 void Widget::showDefaultUI()
 {
     ui->lblDate->setText(
@@ -513,6 +607,9 @@ void Widget::showDefaultUI()
     }
 }
 
+// 目的是：在下拉框 m_cityDropdown 显示时，
+// 检测用户是否点击了下拉框和触发输入框之外的区域，若是则自动隐藏下拉框（在 eventFilter 中实现）。
+// 同时它也负责在点击输入框时切换下拉的显隐。
 bool Widget::eventFilter(QObject *obj, QEvent *event)
 {
     if (event->type() == QEvent::MouseButtonPress && m_cityDropdown->isVisible()) {
@@ -531,6 +628,21 @@ bool Widget::eventFilter(QObject *obj, QEvent *event)
     return QWidget::eventFilter(obj, event);
 }
 
+//重写 changeEvent，确保在窗口最小化时自动隐藏下拉框。
+void Widget::changeEvent(QEvent *event)
+{
+    // 1. 判断事件类型是否是"窗口状态变化"
+    if (event->type() == QEvent::WindowStateChange) {
+        // 2. 判断窗口是否正在最小化：isMinimized() 返回 true并且
+        // 下拉框还在显示：isVisible() 返回 true，强制隐藏下拉框
+        if (isMinimized() && m_cityDropdown->isVisible())
+            m_cityDropdown->hide();// 3. 隐藏下拉框
+    }
+    // 4. 调用基类实现，确保其他默认行为不受影响
+    QWidget::changeEvent(event);
+}
+
+//从缓存读取城市列表，弹出下拉框
 void Widget::showCityDropdown()
 {
     m_cityDropdown->clear();
@@ -546,8 +658,11 @@ void Widget::showCityDropdown()
         m_cityDropdown->addItem(emptyItem);//添加列表项
     }
     else {
-        for (const auto &pair : qAsConst(cities))//在这里遍历
-            m_cityDropdown->addItem(pair.second);//将历史城市缓存一个一个添加到下拉列表框中
+        for (const auto &pair : qAsConst(cities)) {
+            auto *item = new QListWidgetItem(pair.second);
+            item->setData(Qt::UserRole + 1, pair.first);
+            m_cityDropdown->addItem(item);
+        }
 
         //最后添加一个列表项:"清除缓存记录"
         QListWidgetItem *clearItem = new QListWidgetItem("清除缓存记录");
@@ -562,14 +677,15 @@ void Widget::showCityDropdown()
     m_cityDropdown->show();
 }
 
+//lastCityCode 缓存未命中时的降级：取最近缓存城市
 bool Widget::loadRecentCache(QString &outCityCode)
 {
-    auto cities = m_cache->getAllCachedCities();
+    auto cities = m_cache->getAllCachedCities();// 取所有缓存城市
     if (cities.isEmpty())
         return false;
 
-    outCityCode = cities.first().first;
-    return m_cache->load(outCityCode, mToday, mDay);
+    outCityCode = cities.first().first;// 取最新的一条（按更新时间排序）
+    return m_cache->load(outCityCode, mToday, mDay);// 读它的数据给到mToday, mDay
 }
 
 void Widget::on_pushButton_2_clicked()
@@ -577,7 +693,7 @@ void Widget::on_pushButton_2_clicked()
     QString cityName = ui->lineEdit_2->text();
     QString cityCode = WeatherTool::getCityCode(cityName);
 
-    if (!cityCode.isEmpty() && cityCode == m_currentCityCode)
+    if (cityCode == m_currentCityCode)
         return;
 
     m_startupCacheLoaded = false;
@@ -586,14 +702,33 @@ void Widget::on_pushButton_2_clicked()
     if (!cityCode.isEmpty()) {
         QSettings settings;
         settings.setValue("lastCityCode", cityCode);
+
         if (m_cache->load(cityCode, mToday, mDay)) {
+            m_lastRequestedCityCode = cityCode;
             onWeatherDataReady(mToday, mDay);
             return;
         }
+        m_lastRequestedCityCode = cityCode;
+        m_apiClient->getWeatherInfo(cityCode);
+        return;
     }
+
+    // cityCode 为空：区分"重名歧义"和"未找到"
+    if (!cityName.contains('(')) {
+        QStringList opts = WeatherTool::getAmbiguousOptions(cityName);
+        if (!opts.isEmpty()) {
+            QMessageBox msgBox;
+            msgBox.setIcon(QMessageBox::Information);
+            msgBox.setText(QString("找到多个同名城市，请准确输入：\n%1").arg(opts.join("、")));
+            msgBox.exec();
+            return;
+        }
+    }
+
     m_apiClient->getWeatherInfo(cityName);
 }
 
+//今日天气数据 和 7日天气数据
 void Widget::onWeatherDataReady(const Today &today, const Day day[7])
 {
     mToday = today;
@@ -602,6 +737,8 @@ void Widget::onWeatherDataReady(const Today &today, const Day day[7])
 
     QSettings settings;
     QString cityCode = WeatherTool::getCityCode(mToday.city);
+    if (cityCode.isEmpty())
+        cityCode = m_lastRequestedCityCode;
     if (!cityCode.isEmpty()) {
         settings.setValue("lastCityCode", cityCode);
         m_currentCityCode = cityCode;
@@ -615,7 +752,8 @@ void Widget::onWeatherDataReady(const Today &today, const Day day[7])
     m_highChart->setData(high);
     m_lowChart->setData(low);
 
-    m_cache->save(cityCode, mToday, mDay);
+    if (!cityCode.isEmpty())
+        m_cache->save(cityCode, mToday, mDay);
 }
 
 

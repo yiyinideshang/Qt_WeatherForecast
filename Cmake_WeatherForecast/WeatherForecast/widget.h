@@ -36,6 +36,9 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;          // 实现无边框窗口拖拽
     bool eventFilter(QObject *obj, QEvent *event) override; //监听全局鼠标点击关闭 dropdown；lineEdit_2 点击切换 dropdown
 
+    //重写 changeEvent，确保在窗口最小化时自动隐藏下拉框。
+    void changeEvent(QEvent *event) override;
+
     void updataUI();//将数据更新到 UI 控件
     void showDefaultUI();//设置占位符文本（不依赖数据模型默认值）
 
@@ -47,7 +50,8 @@ private:
     void showCityDropdown();//从缓存读取城市列表，弹出下拉框
     bool loadRecentCache(QString &outCityCode);//lastCityCode 缓存未命中时的降级：取最近缓存城市
     void loadIconFont();//加载 iconfont.ttf + 解析 iconfont.json，构建 mIconCodeMap
-    QPixmap renderWeatherIcon(const QString &weather);//QPainter 将天气名称渲染为 QPixmap（iconfont），结果缓存到 m_iconCache
+    //QPainter 将天气名称渲染为 QPixmap（iconfont），结果缓存到 m_iconCache
+    QPixmap renderWeatherIcon(const QString &weather);
 
     Ui::Widget *ui; //UI 对象指针
     QMenu *mExitMenu; //右键菜单（最小化到托盘 / 退出）
@@ -80,6 +84,9 @@ private:
     QListWidget *m_cityDropdown;//最近访问城市下拉列表
 
     QString m_currentCityCode;//当前显示的城市的编码（用于搜索去重）
+    QString m_lastRequestedCityCode;//最近一次请求的城市编码（onWeatherDataReady 歧义回退）
     bool m_startupCacheLoaded = false;//标记启动时是否已展示缓存数据（控制错误弹窗文案）
+    //当它为true时:失败提示为:"网络连接失败，当前显示缓存数据..."（温和提示）
+    //当它为false时:失败提示为:"请求数据失败，请检查城市编码或网络连接"（错误警告）
 };
 #endif

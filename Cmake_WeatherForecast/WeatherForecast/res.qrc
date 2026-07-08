@@ -3,12 +3,10 @@
         <file>res/close.png</file>
         <file>res/humidity.png</file>
         <file>res/kognqiquality.png</file>
-        <file>res/MiniWindow.png</file>
         <file>res/pm2.5.png</file>
         <file>res/search.png</file>
         <file>res/sunrise.png</file>
         <file>res/weather_bg.jpg</file>
-        <file>res/WeatherForecast.png</file>
         <file>res/wind.png</file>
         <file>res/type/baoxue.png</file>
         <file>res/type/baoyu.png</file>
@@ -62,7 +60,9 @@
         <file>res/type/zhongdumai_2.png</file>
         <file>res/type/zhongxue.png</file>
         <file>res/type/zhongyu.png</file>
-        <file>res/city_weather.json</file>
+        <file>city_weather/city_weather.json</file>
+        <file>res/WeatherForecast.png</file>
+        <file>res/MiniWindow.png</file>
         <file>res/weatherforecast_icon/iconfont.ttf</file>
         <file>res/weatherforecast_icon/iconfont.json</file>
     </qresource>

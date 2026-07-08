@@ -9,8 +9,9 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
 
     //定义了一个全局标识，主要用于 QSettings 自动存储用户配置时的路径。
-    a.setOrganizationName("Personal");
-    a.setApplicationName("WeatherForecast");
+    a.setOrganizationName("Personal");//公司/组织文件夹
+    a.setApplicationName("WeatherForecast");// 应用文件夹
+    //里面的每个 setValue(key, value) → 对应注册表里的一个键值对
 
     //在栈上创建 Widget 对象。Widget 是自定义的窗口类
     Widget w;

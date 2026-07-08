@@ -12,3 +12,4 @@ Makefile.Release
 *.exe
 weather_cache.db 
 docs/控件方法.md
+docs/发行版本.md

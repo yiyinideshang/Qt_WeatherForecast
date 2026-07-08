@@ -16,7 +16,9 @@ void ChartWidget::setData(const int temps[7])
     for (int i = 0; i < 7; ++i) {
         m_temps[i] = temps[i];
     }
+    //它是QWidget 的请求重绘方法
     update();
+    //注意 update() 不会立即重绘，而是向事件队列里丢一个重绘请求，Qt 在下一轮事件循环中再调用 paintEvent。这样可以避免频繁的重复绘制。
 }
 
 void ChartWidget::paintEvent(QPaintEvent *event)
