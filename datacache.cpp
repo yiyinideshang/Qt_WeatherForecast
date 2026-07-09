@@ -36,7 +36,7 @@ void DataCache::initDb()
         "date TEXT, city TEXT, ganmao TEXT,"
         "wendu REAL, shidu TEXT, pm25 INTEGER, quality TEXT,"
         "type TEXT, fl TEXT, fx TEXT, high INTEGER, low INTEGER,"
-        "update_time TEXT, pm10 INTEGER DEFAULT 0)"
+        "update_time TEXT, pm10 INTEGER DEFAULT 0, last_access_time TEXT)"
     );
     query.exec(
         "CREATE TABLE IF NOT EXISTS cache_day ("
@@ -49,12 +49,23 @@ void DataCache::initDb()
     );
 }
 
+// ── 两个字段的区别 ──────────────────────────────────────────────
+// update_time      = API 数据更新时间（天气服务端最后刷新数据的时间）
+//                     来源：today.updateTime（API JSON 的 time 字段）
+//                     用途：仅用于 UI 展示（lblUpdateTime），告诉用户数据新鲜度
+//
+// last_access_time = 缓存最后访问时间（本地写入或读取缓存的时刻）
+//                     来源：QDateTime::currentDateTime()
+//                     用途：① 过期判断（2 小时 TTL）  ② LRU 淘汰排序
+// ────────────────────────────────────────────────────────────────
+
 //检查缓存是否过期的工具函数。
-static bool isExpired(const QString &updateTime)
+//参数 timeStr：传入的是 last_access_time（缓存访问时间），用于判断距上次访问是否超过 2 小时
+static bool isExpired(const QString &timeStr)
 {
-    QDateTime dt = QDateTime::fromString(updateTime, Qt::ISODate);//先用 ISO 格式解析时间字符串
+    QDateTime dt = QDateTime::fromString(timeStr, Qt::ISODate);//先用 ISO 格式解析时间字符串
     if (!dt.isValid())
-        dt = QDateTime::fromString(updateTime, "yyyy-MM-dd HH:mm:ss");
+        dt = QDateTime::fromString(timeStr, "yyyy-MM-dd HH:mm:ss");
     return !dt.isValid() || dt.secsTo(QDateTime::currentDateTime()) > 7200;//解析失败就换另一种格式重试
     // 返回 true（已过期）的条件：时间格式无法解析，或者当前时间减去缓存时间已经超过 7200 秒（2 小时）
 }
@@ -72,7 +83,7 @@ bool DataCache::load(const QString &cityCode, Today &today, Day day[7])
     if (!query.exec() || !query.next())
         return false;
 
-    if (isExpired(query.value("update_time").toString()))
+    if (isExpired(query.value("last_access_time").toString()))
         return false; // 缓存过期，视为未命中
 
     today.date = query.value("date").toString();
@@ -111,6 +122,12 @@ bool DataCache::load(const QString &cityCode, Today &today, Day day[7])
         ++i;
     }
 
+    // 缓存命中，刷新 last_access_time 为当前时间，实现真正的 LRU（最近访问而非最近写入）
+    query.prepare("UPDATE cache_today SET last_access_time = ? WHERE city_code = ?");
+    query.addBindValue(QDateTime::currentDateTime().toString(Qt::ISODate));
+    query.addBindValue(cityCode);
+    query.exec();
+
     qDebug() << "缓存命中:" << cityCode << today.city;
     return i == 7;
 }
@@ -122,13 +139,12 @@ void DataCache::save(const QString &cityCode, const Today &today, const Day day[
         return;
 
     QSqlQuery query(m_db);
-    QString now = QDateTime::currentDateTime().toString(Qt::ISODate);
 
     query.prepare(
         "INSERT OR REPLACE INTO cache_today "
         "(city_code, date, city, ganmao, wendu, shidu, pm25, quality, "
-        "type, fl, fx, high, low, update_time, pm10) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        "type, fl, fx, high, low, update_time, pm10, last_access_time) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
     );
     query.addBindValue(cityCode);
     query.addBindValue(today.date);
@@ -143,8 +159,11 @@ void DataCache::save(const QString &cityCode, const Today &today, const Day day[
     query.addBindValue(today.fx);
     query.addBindValue(today.high);
     query.addBindValue(today.low);
-    query.addBindValue(now);
+    query.addBindValue(today.updateTime.isEmpty()
+        ? QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss")
+        : today.updateTime);
     query.addBindValue(today.pm10);
+    query.addBindValue(QDateTime::currentDateTime().toString(Qt::ISODate));
     query.exec();
 
     query.prepare("DELETE FROM cache_day WHERE city_code = ?");
@@ -180,7 +199,7 @@ void DataCache::save(const QString &cityCode, const Today &today, const Day day[
 
 }
 
-//返回所有缓存城市的 (cityCode, cityName) 列表，按 update_time 降序
+//返回所有缓存城市的 (cityCode, cityName) 列表，按 last_access_time 降序
 QList<QPair<QString,QString>> DataCache::getAllCachedCities()
 {
     QList<QPair<QString,QString>> result;
@@ -188,7 +207,8 @@ QList<QPair<QString,QString>> DataCache::getAllCachedCities()
         return result;
 
     QSqlQuery query(m_db);
-    query.exec("SELECT city_code, city, update_time FROM cache_today ORDER BY update_time DESC");
+    //DESC 降序，即从大到小、从晚到早。对应的 ASC（ascending）是升序，默认排序方式就是 ASC。
+    query.exec("SELECT city_code, city FROM cache_today ORDER BY last_access_time DESC");
     while (query.next())
         result.append({query.value(0).toString(), query.value(1).toString()});
     return result;
@@ -216,7 +236,7 @@ void DataCache::evictIfNeeded()
     if (query.next() && query.value(0).toInt() <= MAX_ENTRIES)
         return;
 
-    query.exec("SELECT city_code, update_time FROM cache_today ORDER BY update_time ASC LIMIT 1");
+    query.exec("SELECT city_code FROM cache_today ORDER BY last_access_time ASC LIMIT 1");
     if (query.next()) {
         QString oldest = query.value(0).toString();
         QSqlQuery del(m_db);

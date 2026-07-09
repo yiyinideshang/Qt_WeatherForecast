@@ -118,7 +118,8 @@ Widget::Widget(QWidget *parent)
         //如果点击的是 某个城市
         m_cityDropdown->hide();
 
-        // 优先使用 item 中存储的 cityCode（绕过 getCityCode 歧义判断）
+        // 优先使用 item 中存储的 cityCode（绕过 getCityCode 根据城市名字歧义判断）
+        //static QString getCityCode(const QString &cityName)
         QString code = item->data(Qt::UserRole + 1).toString();
         if (!code.isEmpty()) {
             if (code == m_currentCityCode) return;//如果点击的还是当前城市,不做任何处理,直接返回
@@ -129,9 +130,8 @@ Widget::Widget(QWidget *parent)
 
             if (m_cache->load(code, mToday, mDay)) {//缓存命中,返回true
                 m_lastRequestedCityCode = code;     //更新最近一次请求的城市的编码
-                // 如果点击的是普通城市,则显示在lineEdit_2上
-                ui->lineEdit_2->setText(item->text());
-                onWeatherDataReady(mToday, mDay);
+                ui->lineEdit_2->setText(item->text());// 如果点击的是普通城市,则显示在lineEdit_2上
+                onWeatherDataReady(mToday, mDay);//更新天气
                 return;
             }
             //缓存未命中，说明这个城市从来没查过，或者缓存过期被清掉了。
@@ -401,6 +401,7 @@ void Widget::contextMenuEvent(QContextMenuEvent *event)
     event->accept();
 }
 
+// 重写事件：记录拖拽偏移
 void Widget::mousePressEvent(QMouseEvent *event)
 {
     //event->globalPos() 是鼠标在屏幕上的全局坐标。
@@ -410,7 +411,7 @@ void Widget::mousePressEvent(QMouseEvent *event)
     // Qt6 兼容写法
     mOffset = event->globalPosition().toPoint() - this->pos();
 }
-
+// 重写事件：实现无边框窗口拖拽
 void Widget::mouseMoveEvent(QMouseEvent *event)
 {
     //event->globalPos() 得到鼠标移动后的新坐标
@@ -618,6 +619,7 @@ void Widget::showDefaultUI()
     }
 }
 
+//重写监听事件
 // 目的是：在下拉框 m_cityDropdown 的显示与隐藏，
 // 检测用户是否点击了下拉框和触发输入框之外的区域，若是则自动隐藏下拉框（在 eventFilter 中实现）。
 // 同时它也负责在点击输入框时切换下拉的显隐。
@@ -642,15 +644,15 @@ bool Widget::eventFilter(QObject *obj, QEvent *event)
 //重写 changeEvent，确保在窗口最小化时自动隐藏下拉框。
 void Widget::changeEvent(QEvent *event)
 {
-    // 1. 判断事件类型是否是"窗口状态变化"
+    // 1. 判断事件类型是否是"窗口状态变化"(只关心窗口状态变化（最小化/最大化/还原/全屏)
     if (event->type() == QEvent::WindowStateChange) {
-        // 2. 判断窗口是否正在最小化：isMinimized() 返回 true并且
-        // 下拉框还在显示：isVisible() 返回 true，强制隐藏下拉框
+        // 2. 窗口正在最小化 && 下拉框还在显示
         if (isMinimized() && m_cityDropdown->isVisible())
-            m_cityDropdown->hide();// 3. 隐藏下拉框
+            m_cityDropdown->hide();  // 3. 强制隐藏下拉框
+        //如果下拉框本来就没显示，就不需要多此一举去 hide()。
     }
-    // 4. 调用基类实现，确保其他默认行为不受影响
-    QWidget::changeEvent(event);
+    // 4. 调用基类实现
+    QWidget::changeEvent(event);//如果不调用父类的 changeEvent，Qt 的默认窗口状态处理逻辑可能被跳过，导致最小化/最大化等行为异常。
 }
 
 //从缓存读取城市列表，弹出下拉框
@@ -659,7 +661,6 @@ void Widget::showCityDropdown()
     m_cityDropdown->clear();
     // 获取所有历史城市,之后遍历它,获得下拉列表框中的缓存城市
     auto cities = m_cache->getAllCachedCities();
-
 
     //如果下拉列表框是空的,则只有一个"暂无缓存记录"列表项
     if (cities.isEmpty()) {
@@ -686,6 +687,7 @@ void Widget::showCityDropdown()
         m_cityDropdown->addItem(clearItem);//将 clearItem 这个已经构造好的列表项添加到 m_cityDropdown 这个下拉列表中。
     }
 
+    // 1. 将输入框左下角的局部坐标转换为全局屏幕坐标
     QPoint pos = ui->lineEdit_2->mapToGlobal(QPoint(0, ui->lineEdit_2->height()));
     m_cityDropdown->setFixedWidth(ui->lineEdit_2->width());
     m_cityDropdown->move(pos);

@@ -31,10 +31,10 @@ public:
     ~Widget();
 protected:
     //重写事件:
-    void contextMenuEvent(QContextMenuEvent *event) override;  // 右键弹出退出菜单
+    void contextMenuEvent(QContextMenuEvent *event) override;  // 右键弹出退出/最小化到托盘菜单
     void mousePressEvent(QMouseEvent *event) override;         // 记录拖拽偏移
     void mouseMoveEvent(QMouseEvent *event) override;          // 实现无边框窗口拖拽
-    bool eventFilter(QObject *obj, QEvent *event) override; //监听全局鼠标点击关闭 dropdown；lineEdit_2 点击切换 dropdown
+    bool eventFilter(QObject *obj, QEvent *event) override;    //监听全局鼠标点击关闭 dropdown；
 
     //重写 changeEvent，确保在窗口最小化时自动隐藏下拉框。
     void changeEvent(QEvent *event) override;

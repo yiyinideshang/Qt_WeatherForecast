@@ -14,13 +14,15 @@
 ApiClient::ApiClient(QObject *parent)
     : QObject{parent}
 {
-    mNetAccessManger = new QNetworkAccessManager(this); // ① 创建网络管理器
+    // ① 创建网络管理器
+    mNetAccessManger = new QNetworkAccessManager(this);
     //网络请求
     //关联信号和槽,当ApiClient::getWeatherInfo 发送http/Get请求 完毕后,服务器返回数据,此时:
     //QNetworkAccessManager::mNetAccessManger 就会发送一个finished信号,
     // 并将QNetworkReply的指针携带服务器的响应,作为参数传递出去(传递给 onReplied 槽函数),
     //进而调用onReplied槽函数作出 处理响应动作
-    connect(mNetAccessManger,&QNetworkAccessManager::finished,this,&ApiClient::onReplied);// ② 连接信号与槽
+    // ② 连接信号与槽
+    connect(mNetAccessManger,&QNetworkAccessManager::finished,this,&ApiClient::onReplied);
 
     m_retryTimer = new QTimer(this);//重试定时器（单次触发模式）
     m_retryTimer->setSingleShot(true);
