@@ -16,7 +16,7 @@ public:
 
     bool load(const QString &cityCode, Today &today, Day day[7]);//读缓存，检查过期，返回是否命中
     void save(const QString &cityCode, const Today &today, const Day day[7]);//写缓存（INSERT OR REPLACE），完成后检查并淘汰
-    //返回所有缓存城市的 (cityCode, cityName) 列表，按 update_time 降序
+    //返回所有缓存城市的 (cityCode, cityName) 列表，按 last_access_time 降序
     QList<QPair<QString,QString>> getAllCachedCities();
 
     //清空 cache_today 和 cache_day 所有记录
