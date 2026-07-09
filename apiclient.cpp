@@ -66,7 +66,7 @@ void ApiClient::getWeatherInfo(const QString &cityName)
 
 }
 
-//通过 ipinfo.io 自动定位,如果定位失败，就默认使用“北京”的天气。
+//通过  ip-api.com 自动定位,如果定位失败，就默认使用“北京”的天气。
 void ApiClient::getLocationByIP()
 {
     //1. 创建一个临时的网络管理器（QNetworkAccessManager）
@@ -81,16 +81,22 @@ void ApiClient::getLocationByIP()
             getWeatherInfo("北京");
             return;
         }
-        // ③ 解析 JSON，提取城市拼音
+        // ③ 解析 JSON，提取城市名
         QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        QString cityPinyin = doc.object().value("city").toString();
-        QString cityCode = WeatherTool::getCityCodeByPinyin(cityPinyin);//根据拼音查编码（用于 IP 定位）
-        qDebug() << "自动定位到:" << cityPinyin << "code:" << cityCode;
-        //如果 cityCode 为空（即拼音转换失败，根据该拼音查不到编码），同样默认使用“北京”，否则就用转换后的代码。
+        QString cityName  = doc.object().value("city").toString();
+        QString cityCode = WeatherTool::getCityCode(cityName);//根据城市名查编码（用于 IP 定位）
+        QString region = doc.object().value("regionName").toString();
+        if (cityCode.isEmpty()) {
+            cityCode = WeatherTool::getCityCode(region);//城市名不存在时,根据地区名查编码
+        }
+        //输出 地区名 + 城市名
+        qDebug() << "自动定位到:" <<region << cityName  << "code:" << cityCode;
+
+        //如果 cityCode 为空，默认使用“北京”，否则就用定位城市的编码请求天气。
         getWeatherInfo(cityCode.isEmpty() ? "北京" : cityCode);
     });
-    //2. 发送一个 GET 请求到 https://ipinfo.io/json
-    ipManager->get(QNetworkRequest(QUrl("https://ipinfo.io/json")));
+    //2. 发送一个 GET 请求到 http://ip-api.com/json/?lang=zh-CN
+    ipManager->get(QNetworkRequest(QUrl("http://ip-api.com/json/?lang=zh-CN")));
 }
 
 //HTTP 层：（是否能访问那个天气API网站）槽函数用于处理服务器返回的响应数据

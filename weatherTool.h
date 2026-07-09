@@ -13,7 +13,7 @@
 
 class WeatherTool{
 public:
-    // 加载 json，解析为 mCityMap 和 mPinyinMap
+    // 加载 json，解析为 mCityMap
     static void initCityMap()
     {
         //1.读取文件:从 city_weather.json 资源文件加载全国城市编码映射表
@@ -41,9 +41,7 @@ public:
             QString Name = cities[i].toObject().value("cityName").toString();
             QString Province = cities[i].toObject().value("province").toString();
             QString Code = cities[i].toObject().value("cityCode").toString();
-            QString Pinyin = cities[i].toObject().value("cityPinyin").toString();
             if(Code.size() > 0) {
-                mPinyinMap.insert(Pinyin, Code);
                 if(count[Name] > 1) {
                     QString key = Name + "(" + Province + ")";
                     mCityMap.insert(key, Code);
@@ -100,16 +98,10 @@ public:
         return m_cityAmbiguityMap.value(cityName);
     }
 
-    static QString getCityCodeByPinyin(const QString &pinyin){
-        if(mCityMap.isEmpty()) initCityMap();
-        return mPinyinMap.value(pinyin.toLower());
-    }
-
 private:
-    //提供静态方法根据城市中文名或拼音查询城市编码
+    //提供静态方法根据城市中文名查询城市编码
 
     inline static QMap<QString,QString> mCityMap;
-    inline static QMap<QString,QString> mPinyinMap;
     inline static QMap<QString,QStringList> m_cityAmbiguityMap;
 };
 
