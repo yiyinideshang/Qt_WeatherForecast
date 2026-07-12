@@ -23,8 +23,8 @@ WeatherForecast 是一个基于 Qt 框架的 Windows 桌面天气客户端，调
 
 | 功能模块 | 说明 |
 |---------|------|
-| IP 自动定位 | 首次启动通过 ipinfo.io 定位当前城市，自动回退到默认城市 |
-| 城市搜索 | 内置 2800+ 城市数据库，支持中文名及"市"/"县"后缀自动纠错 |
+| IP 自动定位 | 首次启动通过 ip-api.com 定位当前城市，自动回退到默认城市 |
+| 城市搜索 | 内置 2500+ 城市数据库，支持中文名及"市"/"县"后缀自动纠错 |
 | 最近访问 | 点击搜索框弹出历史城市下拉列表，选中即跳转；支持一键清除缓存 |
 | 六天预报 | 昨天 / 今天 / 明天 + 后三天，含天气图标、温度范围、AQI 六色分级、风力风向 |
 | 温度曲线 | QPainter 自定义绘制高低温折线图，虚线区分历史、实线表示预报，基于均值偏移算法 |
@@ -79,12 +79,12 @@ WeatherForecast/
 ├── datacache.h/.cpp          # SQLite 本地缓存层（约 225 行）
 ├── chartwidget.h/.cpp        # QPainter 温度曲线绘制（约 70 行）
 ├── weatherdata.h             # 数据模型 Today / Day（含 pm10/updateTime/sunrise/sunset/notice）
-├── weatherTool.h             # 2800+ 城市编码映射工具（拼音 + 中文名 + 后缀纠错）
+├── weatherTool.h             # 2500+ 城市编码映射工具（拼音 + 中文名 + 后缀纠错）
 ├── WeatherForecast.pro       # qmake 构建配置（QT += core gui network sql）
 ├── res.qrc                   # Qt 资源文件（嵌入式）
 ├── Cmake_WeatherForecast/    # CMake 构建副本（支持 Qt6/Qt5 双版本）
 ├── res/                      # 图标、背景、iconfont.ttf / iconfont.json
-├── city_weather/             # 2800+ 城市数据库（city_weather.json）
+├── city_weather/             # 2500+ 城市数据库（city_weather.json）
 └── docs/                     # 截图与项目分析文档
 ```
 
