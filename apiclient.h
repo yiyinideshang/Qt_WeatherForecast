@@ -17,7 +17,7 @@ public:
     explicit ApiClient(QObject *parent = nullptr);
 
     void getWeatherInfo(const QString &cityName);//根据城市名/编码发起 GET 请求，先 cancelRetry()
-    void getLocationByIP();//通过 ipinfo.io 自动定位
+    void getLocationByIP();//通过 ip-api.com 自动定位
     void cancelRetry();//停止重试定时器，重置计数（getWeatherInfo 开头调用）
 signals:
     void weatherDataReady(const Today &today, const Day day[7]);//数据就绪后通知 Widget
