@@ -21,12 +21,13 @@ set(PROJECT_SOURCES
     weatherdata.h
     weatherTool.h
     res.qrc
+    weatherforecast.rc
 )
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/debug")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>")
 
 
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
+if(QT_VERSION_MAJOR GREATER_EQUAL 6)
     qt_add_executable(WeatherForecast
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}

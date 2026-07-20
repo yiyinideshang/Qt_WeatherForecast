@@ -34,5 +34,8 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 RESOURCES += \
     res.qrc
 
+RC_ICONS = res/WeatherForecast_256x256.ico
+
+
 DISTFILES += \
     city_weather/city_weather.json

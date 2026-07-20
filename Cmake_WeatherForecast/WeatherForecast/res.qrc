@@ -65,5 +65,6 @@
         <file>res/MiniWindow.png</file>
         <file>res/weatherforecast_icon/iconfont.ttf</file>
         <file>res/weatherforecast_icon/iconfont.json</file>
+        <file>res/WeatherForecast_256x256.ico</file>
     </qresource>
 </RCC>
